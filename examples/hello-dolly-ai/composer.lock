@@ -1,0 +1,83 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "b3a2e4aefc8635b00d4c76554dc9af33",
+    "packages": [],
+    "packages-dev": [
+        {
+            "name": "automattic/ai-evals",
+            "version": "dev-trunk",
+            "dist": {
+                "type": "path",
+                "url": ".packages/automattic-ai-evals",
+                "reference": "c6cb488f77f253b8757134576de0ac2dd290eb4d"
+            },
+            "require": {
+                "ext-json": "*",
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "php-parallel-lint/php-parallel-lint": "^1.4",
+                "phpunit/phpunit": "^9.6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Automattic\\AiEvals\\": "includes/"
+                },
+                "files": [
+                    "bootstrap.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Automattic\\AiEvals\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "lint": [
+                    "parallel-lint --exclude vendor --exclude node_modules ."
+                ],
+                "test": [
+                    "phpunit"
+                ],
+                "check": [
+                    "@lint",
+                    "@test"
+                ]
+            },
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "description": "A development-only evaluation harness for WordPress AI plugins.",
+            "keywords": [
+                "ai",
+                "evals",
+                "wordpress",
+                "wp-cli"
+            ],
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        }
+    ],
+    "aliases": [],
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "automattic/ai-evals": 20
+    },
+    "prefer-stable": true,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=7.4"
+    },
+    "platform-dev": {},
+    "platform-overrides": {
+        "php": "7.4"
+    },
+    "plugin-api-version": "2.9.0"
+}

@@ -1,0 +1,27 @@
+{
+    "name": "wp-ai-evals-workspace",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Development workspace for automattic/ai-evals and the Hello Dolly AI example.",
+    "scripts": {
+        "build": "wp-scripts build",
+        "lint:js": "wp-scripts lint-js src/admin webpack.config.js",
+        "lint:css": "wp-scripts lint-style \"src/admin/**/*.scss\"",
+        "typecheck": "tsc --noEmit",
+        "check": "npm run lint:js && npm run lint:css && npm run typecheck && npm run build && composer check",
+        "demo:setup": "npm run build && php scripts/stage-demo-package.php && composer update automattic/ai-evals --working-dir=examples/hello-dolly-ai --no-interaction --no-audit && npm install --prefix examples/hello-dolly-ai && npm run build --prefix examples/hello-dolly-ai",
+        "demo:check": "npm run check && npm run check --prefix examples/hello-dolly-ai && vendor/bin/phpunit -c examples/hello-dolly-ai/phpunit.xml.dist",
+        "env:start": "wp-env start",
+        "env:stop": "wp-env stop",
+        "env:status": "wp-env status"
+    },
+    "devDependencies": {
+        "@wordpress/api-fetch": "wp-7.0",
+        "@wordpress/components": "wp-7.0",
+        "@wordpress/element": "wp-7.0",
+        "@wordpress/env": "^11.11.0",
+        "@wordpress/i18n": "wp-7.0",
+        "@wordpress/scripts": "^33.0.0",
+        "typescript": "^6.0.3"
+    }
+}

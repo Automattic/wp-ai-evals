@@ -1,0 +1,16 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/wp-env.json",
+    "core": "https://wordpress.org/wordpress-7.0.2.zip",
+    "phpVersion": "8.2",
+    "testsEnvironment": false,
+    "plugins": [
+        "./examples/hello-dolly-ai",
+        "https://downloads.wordpress.org/plugin/ai-provider-for-openai.latest-stable.zip"
+    ],
+    "config": {
+        "WP_DEBUG": true,
+        "SCRIPT_DEBUG": true,
+        "WP_ENVIRONMENT_TYPE": "local",
+        "WP_AI_EVALS_ENABLED": true
+    }
+}

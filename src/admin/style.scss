@@ -1,0 +1,846 @@
+/* Component state selectors stay scoped to this admin app. */
+/* stylelint-disable no-descending-specificity */
+
+$ink: #101517;
+$muted: #5f696e;
+$line: #dcdcde;
+$surface: #fff;
+$canvas: #f6f7f7;
+$accent: #3858e9;
+$accent-dark: #2145e6;
+$positive: #16803c;
+$negative: #b32d2e;
+$warning: #996800;
+
+.wp-ai-evals-wrap {
+	margin: 0 0 0 -20px;
+}
+
+.wp-ai-evals-app {
+	box-sizing: border-box;
+	min-height: calc(100vh - 32px);
+	padding: 36px clamp(20px, 4vw, 56px) 72px;
+	background:
+		radial-gradient(circle at 92% 0, rgb(56 88 233 / 9%), transparent 32rem),
+		$canvas;
+	color: $ink;
+
+	* {
+		box-sizing: border-box;
+	}
+
+	h1,
+	h2,
+	h3,
+	p {
+		margin-top: 0;
+	}
+
+	h1 {
+		margin-bottom: 10px;
+		font-size: clamp(32px, 4vw, 48px);
+		line-height: 1.05;
+		letter-spacing: -0.035em;
+	}
+
+	h2 {
+		margin-bottom: 0;
+		font-size: 20px;
+		line-height: 1.3;
+	}
+
+	h3 {
+		margin-bottom: 4px;
+		font-size: 14px;
+	}
+}
+
+.wp-ai-evals-hero {
+	display: flex;
+	justify-content: space-between;
+	gap: 32px;
+	max-width: 1440px;
+	margin: 0 auto 28px;
+
+	> div:first-child {
+		max-width: 720px;
+	}
+
+	> div:first-child > p:last-child {
+		margin-bottom: 0;
+		color: $muted;
+		font-size: 16px;
+		line-height: 1.6;
+	}
+}
+
+.wp-ai-evals-eyebrow {
+	margin-bottom: 7px;
+	color: $accent;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	line-height: 1.2;
+	text-transform: uppercase;
+}
+
+.wp-ai-evals-platform {
+	display: flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: 18px;
+	min-width: 340px;
+	padding: 14px 16px;
+	border: 1px solid $line;
+	border-radius: 8px;
+	background: rgb(255 255 255 / 82%);
+	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+
+	> div {
+		display: grid;
+		flex: 1;
+		gap: 5px;
+	}
+
+	small {
+		color: $muted;
+	}
+}
+
+.wp-ai-evals-ready {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-weight: 600;
+
+	> span {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: $negative;
+		box-shadow: 0 0 0 3px rgb(179 45 46 / 12%);
+	}
+
+	&.is-ready > span {
+		background: $positive;
+		box-shadow: 0 0 0 3px rgb(22 128 60 / 12%);
+	}
+}
+
+.wp-ai-evals-layout {
+	display: grid;
+	gap: 24px;
+	max-width: 1440px;
+	margin: 0 auto 24px;
+}
+
+.wp-ai-evals-card.components-card {
+	border: 1px solid $line;
+	border-radius: 10px;
+	box-shadow: 0 2px 12px rgb(0 0 0 / 4%);
+
+	.components-card__header {
+		min-height: 76px;
+		padding: 20px 24px;
+	}
+
+	.components-card__body {
+		padding: 24px;
+	}
+}
+
+.wp-ai-evals-field-heading,
+.wp-ai-evals-section-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+
+	p:not(.wp-ai-evals-eyebrow) {
+		margin-bottom: 0;
+		color: $muted;
+	}
+}
+
+.wp-ai-evals-suite-options {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin: 16px 0 26px;
+}
+
+.wp-ai-evals-suite-option {
+	position: relative;
+	padding: 14px 14px 12px;
+	border: 1px solid $line;
+	border-radius: 7px;
+	background: $surface;
+
+	&:has(input:checked) {
+		border-color: $accent;
+		background: rgb(56 88 233 / 4%);
+		box-shadow: inset 3px 0 $accent;
+	}
+
+	.components-base-control {
+		margin-bottom: 0;
+	}
+
+	.components-base-control__help {
+		margin: 3px 0 0 26px;
+	}
+
+	> code {
+		display: inline-block;
+		margin: 8px 0 0 26px;
+		color: $muted;
+		font-size: 11px;
+	}
+}
+
+.wp-ai-evals-fields {
+	padding-top: 24px;
+	border-top: 1px solid $line;
+}
+
+.wp-ai-evals-help {
+	margin: -4px 0 22px;
+	color: $muted;
+	font-size: 12px;
+}
+
+.wp-ai-evals-field-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 130px;
+	gap: 18px;
+
+	.components-base-control {
+		margin-bottom: 0;
+	}
+}
+
+.wp-ai-evals-run-actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 24px;
+	padding-top: 20px;
+	border-top: 1px solid $line;
+
+	.components-button.is-primary {
+		background: $accent;
+
+		&:hover:not(:disabled) {
+			background: $accent-dark;
+		}
+	}
+
+	> span:last-child {
+		color: $muted;
+		font-size: 12px;
+	}
+}
+
+.wp-ai-evals-report {
+	max-width: 1440px;
+	margin: 0 auto 24px;
+	padding: 26px;
+	border: 1px solid $line;
+	border-radius: 10px;
+	background: $surface;
+	box-shadow: 0 2px 12px rgb(0 0 0 / 4%);
+	scroll-margin-top: 42px;
+}
+
+.wp-ai-evals-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 12px;
+	margin: 22px 0;
+}
+
+.wp-ai-evals-stat {
+	display: grid;
+	gap: 5px;
+	padding: 16px;
+	border: 1px solid $line;
+	border-radius: 7px;
+	background: #fbfbfc;
+
+	strong {
+		font-size: 24px;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.025em;
+	}
+
+	span {
+		color: $muted;
+		font-size: 12px;
+	}
+
+	&.is-positive strong {
+		color: $positive;
+	}
+
+	&.is-negative strong {
+		color: $negative;
+	}
+}
+
+.wp-ai-evals-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: $muted;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: capitalize;
+
+	> span {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #8c8f94;
+	}
+
+	&.is-passed {
+		color: $positive;
+
+		> span {
+			background: $positive;
+		}
+	}
+
+	&.is-failed,
+	&.is-error {
+		color: $negative;
+
+		> span {
+			background: $negative;
+		}
+	}
+
+	&.is-running {
+		color: $accent;
+
+		> span {
+			background: $accent;
+			box-shadow: 0 0 0 4px rgb(56 88 233 / 12%);
+		}
+	}
+
+	&.is-paused {
+		color: $warning;
+
+		> span {
+			background: $warning;
+		}
+	}
+}
+
+.wp-ai-evals-report-status {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.wp-ai-evals-section-heading small {
+	display: block;
+	margin-top: 5px;
+	color: $muted;
+}
+
+.wp-ai-evals-progress-wrap {
+	margin-top: 22px;
+	padding: 15px 16px;
+	border-radius: 7px;
+	background: rgb(56 88 233 / 5%);
+}
+
+.wp-ai-evals-progress-label {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 9px;
+	font-size: 12px;
+}
+
+.wp-ai-evals-progress {
+	height: 7px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: rgb(56 88 233 / 14%);
+
+	> span {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		background: $accent;
+		transition: width 180ms ease-out;
+	}
+}
+
+.wp-ai-evals-live-empty,
+.wp-ai-evals-next-case,
+.wp-ai-evals-report.is-loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 90px;
+	color: $muted;
+
+	p {
+		margin: 0;
+	}
+}
+
+.wp-ai-evals-report.is-loading {
+	min-height: 180px;
+}
+
+.wp-ai-evals-case-results {
+	display: grid;
+	gap: 10px;
+}
+
+.wp-ai-evals-case-result {
+	overflow: hidden;
+	border: 1px solid $line;
+	border-radius: 8px;
+	background: $surface;
+
+	&[open] {
+		border-color: #b9bdc2;
+		box-shadow: 0 5px 18px rgb(0 0 0 / 5%);
+	}
+
+	> summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+		min-height: 66px;
+		padding: 13px 16px;
+		cursor: pointer;
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		&::after {
+			content: "+";
+			flex: 0 0 auto;
+			color: $muted;
+			font-size: 19px;
+			font-weight: 400;
+		}
+	}
+
+	&[open] > summary::after {
+		content: "−";
+	}
+
+	&.is-failed,
+	&.is-error {
+		border-left: 3px solid $negative;
+	}
+}
+
+.wp-ai-evals-case-identity {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-width: 0;
+
+	> span:last-child {
+		display: grid;
+		gap: 4px;
+		min-width: 0;
+	}
+
+	strong,
+	code {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	code {
+		color: $muted;
+		font-size: 11px;
+	}
+}
+
+.wp-ai-evals-case-summary {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+
+	> span {
+		padding: 4px 8px;
+		border-radius: 999px;
+		background: #f0f0f1;
+		color: $muted;
+		font-size: 11px;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+.wp-ai-evals-case-body {
+	display: grid;
+	gap: 22px;
+	padding: 22px;
+	border-top: 1px solid $line;
+	background: #fcfcfd;
+}
+
+.wp-ai-evals-inline-diagnostics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+}
+
+.wp-ai-evals-metadata-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 8px;
+	border: 1px solid $line;
+	border-radius: 5px;
+	background: $surface;
+	font-size: 11px;
+
+	> span {
+		color: $muted;
+	}
+
+	> strong {
+		font-weight: 600;
+	}
+}
+
+.wp-ai-evals-diagnostic-section,
+.wp-ai-evals-evaluators {
+
+	> h4 {
+		margin-bottom: 10px;
+	}
+}
+
+.wp-ai-evals-token-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(90px, 1fr));
+	gap: 8px;
+	max-width: 560px;
+
+	> div {
+		display: grid;
+		gap: 3px;
+		padding: 10px 12px;
+		border: 1px solid $line;
+		border-radius: 6px;
+		background: $surface;
+	}
+
+	span {
+		color: $muted;
+		font-size: 10px;
+		text-transform: uppercase;
+	}
+
+	strong {
+		font-size: 17px;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+.wp-ai-evals-tool-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+
+	code {
+		padding: 6px 9px;
+		border-radius: 5px;
+		background: rgb(56 88 233 / 8%);
+		color: #273ca5;
+	}
+}
+
+.wp-ai-evals-data-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.wp-ai-evals-data-panel {
+	min-width: 0;
+	padding: 13px;
+	border: 1px solid $line;
+	border-radius: 7px;
+	background: $surface;
+
+	&.is-wide {
+		grid-column: 1 / -1;
+	}
+
+	h4 {
+		margin-bottom: 8px;
+	}
+
+	pre {
+		max-height: 260px;
+		margin: 0;
+		overflow: auto;
+		color: #2c3338;
+		font-family: Consolas, Monaco, monospace;
+		font-size: 12px;
+		line-height: 1.55;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+}
+
+.wp-ai-evals-evaluators {
+	display: grid;
+	gap: 10px;
+
+	> article {
+		display: grid;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid $line;
+		border-radius: 7px;
+		background: $surface;
+
+		> header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		> header > div {
+			display: flex;
+			align-items: center;
+			gap: 9px;
+		}
+
+		> p {
+			margin: 0;
+			color: $muted;
+			line-height: 1.5;
+		}
+
+		code {
+			color: $muted;
+			font-size: 11px;
+		}
+	}
+}
+
+.wp-ai-evals-subheading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+
+	h4 {
+		margin: 0;
+	}
+
+	span {
+		color: $muted;
+		font-size: 11px;
+	}
+}
+
+.wp-ai-evals-rubric-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 8px;
+
+	> article {
+		display: grid;
+		align-content: start;
+		gap: 8px;
+		padding: 12px;
+		border-radius: 6px;
+		background: #f6f7f7;
+	}
+
+	> article > div:first-child,
+	.wp-ai-evals-rubric-score {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	p {
+		margin: 0;
+		color: $muted;
+		font-size: 12px;
+		line-height: 1.45;
+	}
+}
+
+.wp-ai-evals-rubric-score {
+
+	> strong {
+		font-size: 18px;
+	}
+
+	> span {
+		color: $muted;
+		font-size: 10px;
+	}
+}
+
+.wp-ai-evals-rubric-reason {
+	padding-top: 8px;
+	border-top: 1px solid $line;
+}
+
+.wp-ai-evals-table-wrap {
+	overflow-x: auto;
+	border: 1px solid $line;
+	border-radius: 7px;
+}
+
+.wp-ai-evals-table {
+	width: 100%;
+	border: 0;
+	border-collapse: collapse;
+	background: $surface;
+
+	th,
+	td {
+		padding: 13px 14px;
+		border-bottom: 1px solid $line;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	th {
+		background: #f6f7f7;
+		color: #3c434a;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	tbody tr.is-active td {
+		background: rgb(56 88 233 / 5%);
+	}
+
+	td {
+		font-variant-numeric: tabular-nums;
+	}
+
+	td > code + small {
+		margin-left: 5px;
+	}
+
+	&.is-compact th,
+	&.is-compact td {
+		padding: 11px 12px;
+	}
+}
+
+.wp-ai-evals-result-detail {
+	min-width: 320px;
+	max-width: 620px;
+
+	p {
+		margin-bottom: 8px;
+	}
+
+	pre {
+		max-height: 220px;
+		margin: 0;
+		overflow: auto;
+		color: #2c3338;
+		font-family: Consolas, Monaco, monospace;
+		font-size: 12px;
+		line-height: 1.55;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+}
+
+.wp-ai-evals-history {
+	max-width: 1440px;
+	margin: 0 auto;
+}
+
+@media (max-width: 1100px) {
+
+	.wp-ai-evals-hero {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+
+	.wp-ai-evals-platform {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.wp-ai-evals-summary-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 700px) {
+
+	.wp-ai-evals-wrap {
+		margin-left: -10px;
+	}
+
+	.wp-ai-evals-app {
+		padding: 24px 12px 48px;
+	}
+
+	.wp-ai-evals-suite-options,
+	.wp-ai-evals-field-row,
+	.wp-ai-evals-summary-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.wp-ai-evals-run-actions,
+	.wp-ai-evals-platform {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.wp-ai-evals-section-heading,
+	.wp-ai-evals-case-result > summary,
+	.wp-ai-evals-evaluators > article > header {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.wp-ai-evals-case-summary {
+		flex-wrap: wrap;
+	}
+
+	.wp-ai-evals-data-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.wp-ai-evals-data-panel.is-wide {
+		grid-column: auto;
+	}
+
+	.wp-ai-evals-token-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

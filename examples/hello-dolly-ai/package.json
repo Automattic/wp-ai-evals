@@ -1,0 +1,21 @@
+{
+    "name": "hello-dolly-ai-example",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Block assets for the Hello Dolly AI development plugin.",
+    "scripts": {
+        "build": "wp-scripts build --webpack-copy-php",
+        "start": "wp-scripts start --webpack-copy-php",
+        "format": "wp-scripts format src",
+        "lint:js": "wp-scripts lint-js src",
+        "lint:css": "wp-scripts lint-style \"src/**/*.scss\"",
+        "check": "npm run lint:js && npm run lint:css && npm run build"
+    },
+    "devDependencies": {
+        "@wordpress/block-editor": "wp-7.0",
+        "@wordpress/blocks": "wp-7.0",
+        "@wordpress/components": "wp-7.0",
+        "@wordpress/i18n": "wp-7.0",
+        "@wordpress/scripts": "^33.0.0"
+    }
+}

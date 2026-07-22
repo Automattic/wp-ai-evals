@@ -1,0 +1,48 @@
+{
+    "name": "automattic/ai-evals",
+    "description": "A development-only evaluation harness for WordPress AI plugins.",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "keywords": [
+        "ai",
+        "evals",
+        "wordpress",
+        "wp-cli"
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "php-parallel-lint/php-parallel-lint": "^1.4",
+        "phpunit/phpunit": "^9.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Automattic\\AiEvals\\": "includes/"
+        },
+        "files": [
+            "bootstrap.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Automattic\\AiEvals\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "platform": {
+            "php": "7.4"
+        }
+    },
+    "scripts": {
+        "lint": "parallel-lint --exclude vendor --exclude node_modules .",
+        "test": "phpunit",
+        "check": [
+            "@lint",
+            "@test"
+        ]
+    }
+}

@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "hello-dolly-ai/hello-dolly",
+	"version": "0.1.0",
+	"title": "Hello Dolly AI",
+	"category": "widgets",
+	"icon": "format-chat",
+	"description": "A connector-powered chat guide to Dolly Parton's life, work, and philanthropy.",
+	"keywords": [ "AI", "chat", "Dolly Parton" ],
+	"textdomain": "hello-dolly-ai",
+	"attributes": {
+		"greeting": {
+			"type": "string",
+			"default": "Hi! I’m Hello Dolly. Ask me about Dolly Parton’s life, music, or philanthropy."
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"color": {
+			"background": true,
+			"text": true
+		},
+		"spacing": {
+			"margin": true
+		}
+	},
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
+	"editorStyle": "file:./index.css",
+	"style": "file:./style-index.css"
+}
