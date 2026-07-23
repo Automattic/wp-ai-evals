@@ -14,7 +14,11 @@
             "type": "path",
             "url": ".packages/automattic-ai-evals",
             "options": {
-                "symlink": false
+                "reference": "none",
+                "symlink": false,
+                "versions": {
+                    "automattic/ai-evals": "dev-trunk"
+                }
             }
         }
     ],

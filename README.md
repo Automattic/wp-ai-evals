@@ -19,6 +19,22 @@ Plugin authors register reusable evaluation suites and run them from **Tools →
 - Provider, model, token, tool, latency, score, failure, rubric, and optional provider-reported cost metadata.
 - Development-only loading with production safeguards.
 
+## Where it fits
+
+[WP Bench](https://make.wordpress.org/ai/handbook/projects/wp-bench/) measures
+how well language models understand WordPress development and generate
+WordPress code. WordPress AI Evals is complementary: it runs plugin-owned cases
+against the plugin's actual behavior inside WordPress, using the site's
+configured Connectors, AI Client, and Abilities.
+
+The harness follows the same core data → task → evaluator workflow as
+general-purpose eval systems, with deterministic and custom scorers, LLM
+judges, repeated samples, model comparisons, stored runs, and CI output. Its
+scope is deliberately WordPress-native, local development tooling—not hosted
+collaboration or production observability. Baseline comparisons, first-class
+traces, richer datasets, and statistical reporting remain on the
+[roadmap](docs/roadmap.md).
+
 ## Requirements
 
 - WordPress 7.0 or newer.
@@ -111,6 +127,9 @@ wp ai-evals run --format=junit > ai-evals.xml
 ```
 
 The command exits non-zero when a case fails or errors. Use `--fail-under=0.85` to add an aggregate score gate.
+If a suite executes permission-protected Abilities, use WP-CLI's global
+`--user=<login>` option so their permission callbacks run with the intended
+WordPress user.
 
 ## Keeping it out of production
 

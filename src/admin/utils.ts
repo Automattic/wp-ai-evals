@@ -1,3 +1,5 @@
+import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
+
 import type {
 	FormToken,
 	ReportedCost,
@@ -5,6 +7,10 @@ import type {
 	RunReport,
 	RunSession,
 } from './types';
+
+export function formatDateTime( value: string ): string {
+	return dateI18n( getDateSettings().formats.datetime, value );
+}
 
 export function formatDuration( milliseconds?: number ): string {
 	return `${ new Intl.NumberFormat( undefined, {

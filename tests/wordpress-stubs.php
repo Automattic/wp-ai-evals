@@ -28,6 +28,8 @@ if ( ! function_exists( 'wp_ai_evals_test_reset_state' ) ) {
 		$GLOBALS['wp_ai_evals_test_judge_response'] = '';
 		$GLOBALS['wp_ai_evals_test_last_prompt']    = null;
 		$GLOBALS['wp_ai_evals_test_builder_calls']  = array();
+		$GLOBALS['wp_ai_evals_test_last_capability'] = null;
+		$GLOBALS['wp_ai_evals_test_user_can']       = true;
 	}
 }
 
@@ -85,6 +87,14 @@ if ( ! function_exists( 'remove_all_filters' ) ) {
 		unset( $GLOBALS['wp_ai_evals_test_hooks'][ $hook ] );
 
 		return true;
+	}
+}
+
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( string $capability ): bool {
+		$GLOBALS['wp_ai_evals_test_last_capability'] = $capability;
+
+		return (bool) $GLOBALS['wp_ai_evals_test_user_can'];
 	}
 }
 
