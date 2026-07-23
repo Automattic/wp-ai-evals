@@ -17,15 +17,29 @@ The sample is intentionally narrow: it helps signed-in users learn about Dolly P
 - Exact cross-provider model targets, model-aware agent callbacks, comparison summaries, and an independently pinned judge model.
 - Exact, substring, regex, JSON Schema, callback, latency, and LLM-judge evaluators, including a weighted multi-item grounding rubric.
 
+## Coverage map
+
+The sample doubles as an integration fixture. Its two suites contain nine cases, and its PHPUnit tests verify the surrounding WordPress integration.
+
+| Area | Covered features |
+| --- | --- |
+| Tasks | Callable, Ability, direct text Prompt, and model-aware agent callbacks |
+| Evaluators | Exact match, contains text, regex, JSON Schema, callback, latency, and LLM judge |
+| Organization | Multiple suites, directory manifests, individual case files, iterable datasets, tags, metadata, and repetitions |
+| Model experiments | Exact provider/model targets, candidate comparisons, and an independently pinned judge |
+| Diagnostics | Tool calls, token usage, latency, score details, errors, and provider-reported cost when available |
+| WordPress integration | Ability registration and permissions, activation, plugin action links, REST route security and rate limiting, and dynamic block states |
+
 ## Start it with wp-env
 
 From the repository root, with Docker running:
 
 ```bash
 composer install
-npm install
-npm run demo:setup
-npm run env:start
+corepack enable pnpm
+pnpm install
+pnpm demo:setup
+pnpm env:start
 ```
 
 Open <http://localhost:8888> and sign in at `/wp-admin` with `admin` / `password`. Activation creates and publishes `/hello-dolly-ai/` with the chat block already inserted.
@@ -45,7 +59,7 @@ Configure only the providers you intend to use, then restart wp-env after changi
 
 The tool-using agent currently prefers `claude-sonnet-4-6` when it is available. Anthropic provider 1.0.3 does not preserve Claude Sonnet 5's signed adaptive-thinking blocks across a tool round trip. This is a preference rather than a requirement, so WordPress still falls back to another compatible configured model or provider.
 
-`npm run demo:setup` stages a minimal copy of the library for the demo's local Composer path repository before installing it. This is necessary because the demo plugin is nested inside the library repository; the generated `.packages` directory and `vendor` install are both ignored by Git.
+`pnpm demo:setup` stages a minimal copy of the library for the demo's local Composer path repository before installing it. This is necessary because the demo plugin is nested inside the library repository; the generated `.packages` directory and `vendor` install are both ignored by Git.
 
 ## Run the evals
 
@@ -53,22 +67,22 @@ The WordPress-native Admin app is at **Tools → AI Evals**. It starts with all 
 
 ```bash
 # Inventory both suites and their tags.
-npx wp-env run cli wp --user=admin ai-evals list
+pnpm exec wp-env run cli wp --user=admin ai-evals list
 
 # Inspect exact provider:model targets currently exposed by configured providers.
-npx wp-env run cli wp --user=admin ai-evals models
+pnpm exec wp-env run cli wp --user=admin ai-evals models
 
 # Fast deterministic contracts, including the registered Abilities.
-npx wp-env run cli wp --user=admin ai-evals run hello-dolly-knowledge --tag=offline
+pnpm exec wp-env run cli wp --user=admin ai-evals run hello-dolly-knowledge --tag=offline
 
 # Connector-backed agent and model-quality checks.
-npx wp-env run cli wp --user=admin ai-evals run hello-dolly-agent --tag=live
+pnpm exec wp-env run cli wp --user=admin ai-evals run hello-dolly-agent --tag=live
 
 # Sample non-deterministic safety tests repeatedly and emit JUnit.
-npx wp-env run cli wp --user=admin ai-evals run --tag=safety --repeat=3 --format=junit
+pnpm exec wp-env run cli wp --user=admin ai-evals run --tag=safety --repeat=3 --format=junit
 
 # Compare the same live agent cases with an independent fixed judge.
-npx wp-env run cli wp --user=admin ai-evals run hello-dolly-agent \
+pnpm exec wp-env run cli wp --user=admin ai-evals run hello-dolly-agent \
   --model=openai:gpt-5.4,anthropic:claude-sonnet-4-6 \
   --judge-model=openai:gpt-5.4
 ```
@@ -80,8 +94,8 @@ The `hello-dolly-knowledge` suite runs without an AI key. The `hello-dolly-agent
 ## Development checks
 
 ```bash
-npm run check --prefix examples/hello-dolly-ai
-vendor/bin/phpunit -c examples/hello-dolly-ai/phpunit.xml.dist
+pnpm --filter hello-dolly-ai-example check
+pnpm --filter hello-dolly-ai-example test:php
 ```
 
 `composer install --no-dev` does not install `automattic/ai-evals` or autoload `evals/register.php`. A production plugin build should use `--no-dev` and omit this sample entirely.

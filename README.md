@@ -134,9 +134,10 @@ The [Hello Dolly AI example](examples/hello-dolly-ai) is a working WordPress cha
 
 ```bash
 composer install
-npm install
-npm run demo:setup
-npm run env:start
+corepack enable pnpm
+pnpm install
+pnpm demo:setup
+pnpm env:start
 ```
 
 - [Authoring evaluation suites](docs/authoring-evals.md)
@@ -148,8 +149,9 @@ npm run env:start
 
 ```bash
 composer install
-npm install
-npm run check
+corepack enable pnpm
+pnpm install
+pnpm check
 ```
 
 Licensed under GPL-2.0-or-later.
