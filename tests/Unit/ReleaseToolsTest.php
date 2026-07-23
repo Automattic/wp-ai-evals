@@ -22,31 +22,18 @@ final class ReleaseToolsTest extends TestCase {
 		}
 	}
 
-	public function testUsesTheWorkspaceVersionForTheFirstRelease(): void {
-		self::assertSame( '0.1.0', ReleaseVersion::next_version( array(), '0.1.0', 'patch' ) );
+	public function testReadsTheDeclaredPackageVersion(): void {
+		self::assertSame( '0.4.2', ReleaseVersion::from_json( '{"name":"fixture","version":"0.4.2"}' ) );
 	}
 
-	/**
-	 * @dataProvider bumpProvider
-	 */
-	public function testBumpsTheLatestStableTag( string $bump, string $expected ): void {
-		$tags = array( 'v0.1.2', 'not-a-release', 'v0.3.4', 'v0.2.9' );
-
-		self::assertSame( $expected, ReleaseVersion::next_version( $tags, '0.1.0', $bump ) );
-	}
-
-	/** @return list<array{string, string}> */
-	public function bumpProvider(): array {
-		return array(
-			array( 'patch', '0.3.5' ),
-			array( 'minor', '0.4.0' ),
-			array( 'major', '1.0.0' ),
-		);
-	}
-
-	public function testRejectsAnUnsupportedBump(): void {
+	public function testRejectsAMissingPackageVersion(): void {
 		$this->expectException( RuntimeException::class );
-		ReleaseVersion::next_version( array( 'v0.1.0' ), '0.1.0', 'banana' );
+		ReleaseVersion::from_json( '{"name":"fixture"}' );
+	}
+
+	public function testRejectsAnInvalidPackageVersion(): void {
+		$this->expectException( RuntimeException::class );
+		ReleaseVersion::from_json( '{"name":"fixture","version":"next"}' );
 	}
 
 	public function testPreparesAMinimalVersionedPackageWithBuiltAssets(): void {

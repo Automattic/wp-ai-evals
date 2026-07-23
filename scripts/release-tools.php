@@ -12,46 +12,15 @@ use RuntimeException;
 
 final class ReleaseVersion {
 
-	/**
-	 * @param list<string> $tags
-	 */
-	public static function next_version( array $tags, string $initial_version, string $bump ): string {
-		self::assert_version( $initial_version );
-
-		if ( ! in_array( $bump, array( 'patch', 'minor', 'major' ), true ) ) {
-			throw new RuntimeException( sprintf( 'Unsupported release bump "%s".', $bump ) );
+	public static function from_json( string $json ): string {
+		$package = json_decode( $json, true );
+		if ( ! is_array( $package ) || ! isset( $package['version'] ) || ! is_string( $package['version'] ) ) {
+			throw new RuntimeException( 'package.json must contain a string version.' );
 		}
 
-		$versions = array();
-		foreach ( $tags as $tag ) {
-			$tag = trim( $tag );
-			if ( 1 !== preg_match( '/^v?(\d+\.\d+\.\d+)$/', $tag, $matches ) ) {
-				continue;
-			}
+		self::assert_version( $package['version'] );
 
-			$versions[] = $matches[1];
-		}
-
-		if ( array() === $versions ) {
-			return $initial_version;
-		}
-
-		usort(
-			$versions,
-			static function ( string $left, string $right ): int {
-				return version_compare( $right, $left );
-			}
-		);
-
-		$parts = array_map( 'intval', explode( '.', $versions[0] ) );
-		if ( 'major' === $bump ) {
-			return sprintf( '%d.0.0', $parts[0] + 1 );
-		}
-		if ( 'minor' === $bump ) {
-			return sprintf( '%d.%d.0', $parts[0], $parts[1] + 1 );
-		}
-
-		return sprintf( '%d.%d.%d', $parts[0], $parts[1], $parts[2] + 1 );
+		return $package['version'];
 	}
 
 	public static function assert_version( string $version ): void {

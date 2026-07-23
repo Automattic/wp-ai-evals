@@ -5,14 +5,17 @@ after the **Tests** workflow succeeds for a push to `trunk`.
 
 ## Versioning
 
-Normal `trunk` releases increment the latest stable tag's patch component. If
-the repository has no stable tags yet, the first release uses the version in
-the root `package.json`.
-
-Maintainers can run the workflow manually and choose a patch, minor, or major
-bump. Re-running it for a commit that already has a release tag reuses that tag
-and repairs or replaces its downloadable assets instead of creating another
+A release is triggered only when the successful commit merged into `trunk`
+changes the version in the root `package.json` relative to its first parent.
+Maintainers choose the version explicitly by updating that file in the change
+being merged. The workflow accepts stable semantic versions such as `0.2.0` and
+uses that exact value for the release tag; it never calculates or increments a
 version.
+
+Merges that leave the version unchanged skip release packaging. If the declared
+version's tag already belongs to another commit, the workflow fails rather than
+publishing over it. Re-running the workflow for the same release commit reuses
+its tag and repairs or replaces its downloadable assets.
 
 ## Built package
 

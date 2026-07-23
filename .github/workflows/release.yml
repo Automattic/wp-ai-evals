@@ -6,17 +6,6 @@ on:
       - Tests
     types:
       - completed
-  workflow_dispatch:
-    inputs:
-      bump:
-        description: Semantic version component to increment
-        required: true
-        default: patch
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 permissions:
   contents: write
@@ -28,19 +17,12 @@ concurrency:
 jobs:
   release:
     if: >-
-      (
-        github.event_name == 'workflow_dispatch' &&
-        github.ref == 'refs/heads/trunk'
-      ) ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'trunk'
-      )
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'trunk'
     runs-on: ubuntu-latest
     env:
-      BUMP: ${{ inputs.bump || 'patch' }}
-      RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,68 +34,82 @@ jobs:
           php-version: '8.3'
           coverage: none
 
-      - name: Calculate release version
+      - name: Detect declared release version
         id: version
         shell: bash
         run: |
           git fetch --force --tags origin
 
-          existing_tag=""
-          while IFS= read -r tag; do
-            tag_commit="$(git rev-parse "${tag}^{commit}")"
-            tag_parent="$(git rev-parse "${tag_commit}^" 2>/dev/null || true)"
-            if [[ "$tag_commit" == "$RELEASE_SHA" || "$tag_parent" == "$RELEASE_SHA" ]]; then
-              existing_tag="$tag"
-              break
-            fi
-          done < <(git tag --list 'v[0-9]*' --sort=-v:refname)
+          version="$(php scripts/read-package-version.php package.json)"
+          previous_version="$(
+            git show "${RELEASE_SHA}^:package.json" |
+              php scripts/read-package-version.php -
+          )"
 
-          if [[ -n "$existing_tag" ]]; then
-            echo "Reusing existing release tag $existing_tag for $RELEASE_SHA."
-            echo "reuse=true" >> "$GITHUB_OUTPUT"
-            echo "tag=$existing_tag" >> "$GITHUB_OUTPUT"
-            echo "version=${existing_tag#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == "$previous_version" ]]; then
+            echo "package.json version is unchanged at $version; skipping release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          version="$(git tag --list 'v[0-9]*' | php scripts/next-release-version.php "$BUMP")"
+          tag="v${version}"
+          echo "package.json version changed from $previous_version to $version."
+
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            tag_commit="$(git rev-parse "${tag}^{commit}")"
+            tag_parent="$(git rev-parse "${tag_commit}^" 2>/dev/null || true)"
+            if [[ "$tag_commit" != "$RELEASE_SHA" && "$tag_parent" != "$RELEASE_SHA" ]]; then
+              echo "::error::Release tag $tag already points to another commit."
+              exit 1
+            fi
+
+            echo "Reusing existing release tag $tag for $RELEASE_SHA."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "reuse=false" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Check out existing release commit
-        if: steps.version.outputs.reuse == 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse == 'true'
         run: git checkout --detach "${{ steps.version.outputs.tag }}^{commit}"
 
       - uses: pnpm/action-setup@v4
-        if: steps.version.outputs.reuse != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
         with:
           version: 10.18.3
 
       - uses: actions/setup-node@v4
-        if: steps.version.outputs.reuse != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
         with:
           node-version: 20
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.version.outputs.reuse != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
         run: |
           composer install --no-interaction --prefer-dist
           pnpm install --frozen-lockfile
 
       - name: Validate and build
-        if: steps.version.outputs.reuse != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
         run: pnpm check
 
       - name: Prepare release package
+        if: steps.version.outputs.skip != 'true'
         env:
           OUTPUT_DIRECTORY: ${{ runner.temp }}/package
           VERSION: ${{ steps.version.outputs.version }}
         run: php scripts/prepare-release.php "$VERSION" "$OUTPUT_DIRECTORY"
 
       - name: Create and push release tag
-        if: steps.version.outputs.reuse != 'true'
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
@@ -126,6 +122,7 @@ jobs:
           git push origin "$TAG"
 
       - name: Build release archive
+        if: steps.version.outputs.skip != 'true'
         env:
           OUTPUT_DIRECTORY: ${{ runner.temp }}/package
           VERSION: ${{ steps.version.outputs.version }}
@@ -139,6 +136,7 @@ jobs:
           sha256sum "$archive" > "${archive}.sha256"
 
       - name: Publish GitHub release
+        if: steps.version.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
