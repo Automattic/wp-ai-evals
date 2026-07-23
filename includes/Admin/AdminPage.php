@@ -90,7 +90,7 @@ final class AdminPage
                 || !is_readable($root . '/build/admin/style-index.css')
             ) : ?>
                 <div class="notice notice-error"><p>
-                    <?php echo esc_html__('The AI Evals Admin assets are missing. Run npm run build in the library directory.', 'wp-ai-evals'); ?>
+                    <?php echo esc_html__('The AI Evals Admin assets are missing. Run pnpm build in the library directory.', 'wp-ai-evals'); ?>
                 </p></div>
             <?php endif; ?>
             <div id="wp-ai-evals-admin"></div>

@@ -2,7 +2,7 @@
 // @jsx createElement
 
 import { Button, Notice, Spinner } from '@wordpress/components';
-import { createElement, type RefObject } from '@wordpress/element';
+import { Fragment, createElement, type RefObject } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 import type {

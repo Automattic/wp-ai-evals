@@ -58,45 +58,46 @@ Install dependencies:
 
 ```bash
 composer install
-npm install
+corepack enable pnpm
+pnpm install
 ```
 
 Run the full library validation:
 
 ```bash
-npm run check
+pnpm check
 ```
 
 Useful focused checks:
 
 ```bash
 composer check
-npm run lint:js
-npm run lint:css
-npm run typecheck
-npm run build
+pnpm lint:js
+pnpm lint:css
+pnpm typecheck
+pnpm build
 ```
 
 Prepare and validate the sample plugin:
 
 ```bash
-npm run demo:setup
-npm run demo:check
+pnpm demo:setup
+pnpm demo:check
 ```
 
 Run the local WordPress environment:
 
 ```bash
-npm run env:start
-npm run env:status
-npm run env:stop
+pnpm env:start
+pnpm env:status
+pnpm env:stop
 ```
 
 ## Before finishing a change
 
-- Run the smallest relevant check while iterating and `npm run check` before
+- Run the smallest relevant check while iterating and `pnpm check` before
   handing off a completed library or Admin change.
-- Run `npm run demo:check` when behavior shared with the example plugin changes.
+- Run `pnpm demo:check` when behavior shared with the example plugin changes.
 - Exercise the affected workflow in `wp-env` for Admin, REST, connector, model
   comparison, live-run, persistence, or block changes.
 - Confirm generated `build/`, dependency directories, local credentials,

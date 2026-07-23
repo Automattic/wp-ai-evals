@@ -15,6 +15,7 @@ import {
 	TextControl,
 } from '@wordpress/components';
 import {
+	Fragment,
 	createElement,
 	useEffect,
 	useMemo,

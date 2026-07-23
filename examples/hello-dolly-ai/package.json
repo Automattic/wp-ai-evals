@@ -3,13 +3,19 @@
     "version": "0.1.0",
     "private": true,
     "description": "Block assets for the Hello Dolly AI development plugin.",
+    "packageManager": "pnpm@10.18.3",
+    "engines": {
+        "node": ">=20",
+        "pnpm": ">=10.18.3 <11"
+    },
     "scripts": {
         "build": "wp-scripts build --webpack-copy-php",
         "start": "wp-scripts start --webpack-copy-php",
         "format": "wp-scripts format src",
         "lint:js": "wp-scripts lint-js src",
         "lint:css": "wp-scripts lint-style \"src/**/*.scss\"",
-        "check": "npm run lint:js && npm run lint:css && npm run build"
+        "test:php": "../../vendor/bin/phpunit -c phpunit.xml.dist",
+        "check": "pnpm lint:js && pnpm lint:css && pnpm build"
     },
     "devDependencies": {
         "@wordpress/block-editor": "wp-7.0",

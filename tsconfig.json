@@ -3,7 +3,9 @@
         "allowJs": false,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "jsx": "react-jsx",
+        "jsx": "react",
+        "jsxFactory": "createElement",
+        "jsxFragmentFactory": "Fragment",
         "lib": [
             "DOM",
             "ES2020"

@@ -1,0 +1,13 @@
+packages:
+  - examples/hello-dolly-ai
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - fs-ext-extra-prebuilt
+  - unrs-resolver
+
+ignoredBuiltDependencies:
+  - core-js
+  - core-js-pure
+
+engineStrict: true

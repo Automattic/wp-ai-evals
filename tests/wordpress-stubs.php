@@ -25,7 +25,10 @@ if (!function_exists('wp_ai_evals_test_reset_state')) {
         $GLOBALS['wp_ai_evals_test_options'] = [];
         $GLOBALS['wp_ai_evals_test_transients'] = [];
         $GLOBALS['wp_ai_evals_test_hooks'] = [];
+        $GLOBALS['wp_ai_evals_test_abilities'] = [];
         $GLOBALS['wp_ai_evals_test_judge_response'] = '';
+        $GLOBALS['wp_ai_evals_test_last_prompt'] = null;
+        $GLOBALS['wp_ai_evals_test_builder_calls'] = [];
     }
 }
 
@@ -224,6 +227,20 @@ if (!function_exists('is_wp_error')) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Abilities                                                                   */
+/* -------------------------------------------------------------------------- */
+
+if (!function_exists('wp_get_ability')) {
+    /** @return object|null */
+    function wp_get_ability(string $name)
+    {
+        $ability = $GLOBALS['wp_ai_evals_test_abilities'][$name] ?? null;
+
+        return is_object($ability) ? $ability : null;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
 /* REST schema validation (shallow)                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -339,6 +356,11 @@ if (!class_exists('WpAiEvalsTestJudgeBuilder')) {
          */
         public function __call(string $name, array $arguments): self
         {
+            $GLOBALS['wp_ai_evals_test_builder_calls'][] = [
+                'name' => $name,
+                'arguments' => $arguments,
+            ];
+
             return $this;
         }
 
@@ -353,6 +375,8 @@ if (!function_exists('wp_ai_client_prompt')) {
     /** @param mixed $prompt */
     function wp_ai_client_prompt($prompt = ''): WpAiEvalsTestJudgeBuilder
     {
+        $GLOBALS['wp_ai_evals_test_last_prompt'] = $prompt;
+
         return new WpAiEvalsTestJudgeBuilder();
     }
 }
