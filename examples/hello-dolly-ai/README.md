@@ -14,6 +14,7 @@ The sample is intentionally narrow: it helps signed-in users learn about Dolly P
 - Fact, timeline, and song-note Abilities with JSON schemas, permission callbacks, and read-only annotations.
 - Multiple registered eval suites loaded from suite manifests and individual case files, plus parameterized datasets, metadata, repetitions, and tag-based subsets.
 - Callable, Ability, and direct Prompt tasks.
+- Exact cross-provider model targets, model-aware agent callbacks, comparison summaries, and an independently pinned judge model.
 - Exact, substring, regex, JSON Schema, callback, latency, and LLM-judge evaluators, including a weighted multi-item grounding rubric.
 
 ## Start it with wp-env
@@ -29,17 +30,18 @@ npm run env:start
 
 Open <http://localhost:8888> and sign in at `/wp-admin` with `admin` / `password`. Activation creates and publishes `/hello-dolly-ai/` with the chat block already inserted.
 
-The environment pins WordPress 7.0.2 and activates the official OpenAI provider plugin. Add an OpenAI API key in an ignored `.wp-env.override.json` at the repository root:
+The environment pins WordPress 7.0.2 and activates the official OpenAI and Anthropic provider plugins. Add API keys in an ignored `.wp-env.override.json` at the repository root:
 
 ```json
 {
     "config": {
-        "OPENAI_API_KEY": "your-development-key"
+        "OPENAI_API_KEY": "your-development-key",
+        "ANTHROPIC_API_KEY": "your-development-key"
     }
 }
 ```
 
-Restart wp-env after changing the override. You can swap the provider URL in `.wp-env.json` for another WordPress AI provider that supports text generation, function calls, and structured JSON output; the sample plugin itself is provider-agnostic.
+Configure only the providers you intend to use, then restart wp-env after changing the override. You can add another WordPress AI provider that supports text generation, function calls, and structured JSON output; the sample plugin itself is provider-agnostic.
 
 The tool-using agent currently prefers `claude-sonnet-4-6` when it is available. Anthropic provider 1.0.3 does not preserve Claude Sonnet 5's signed adaptive-thinking blocks across a tool round trip. This is a preference rather than a requirement, so WordPress still falls back to another compatible configured model or provider.
 
@@ -47,11 +49,14 @@ The tool-using agent currently prefers `claude-sonnet-4-6` when it is available.
 
 ## Run the evals
 
-The WordPress-native Admin app is at **Tools → AI Evals**. Select one or more suites, use the autocomplete tag field to add cross-cutting subsets as pills, watch each case arrive live, and expand its input, output, tokens, tools, metadata, and evaluator details. Completed runs remain selectable in Previous runs. WP-CLI uses the same registry and runner:
+The WordPress-native Admin app is at **Tools → AI Evals**. It starts with all cases selected; use **+ Add filter** to narrow by suite, tag, or case ID. The compact **Settings** list shows the current candidate models, judge, and repetitions; choose **Change** beside one to edit it. Filters appear as removable pills, and the first available preferred judge is selected automatically. Watch each case arrive live; comparison runs group every model beneath the shared test in aligned result, score, latency, token, optional provider-reported cost, and tool columns, with best values and deltas visible before expanding the full diagnostics. Completed runs remain selectable in Previous runs. WP-CLI uses the same registry and runner:
 
 ```bash
 # Inventory both suites and their tags.
 npx wp-env run cli wp --user=admin ai-evals list
+
+# Inspect exact provider:model targets currently exposed by configured providers.
+npx wp-env run cli wp --user=admin ai-evals models
 
 # Fast deterministic contracts, including the registered Abilities.
 npx wp-env run cli wp --user=admin ai-evals run hello-dolly-knowledge --tag=offline
@@ -61,6 +66,11 @@ npx wp-env run cli wp --user=admin ai-evals run hello-dolly-agent --tag=live
 
 # Sample non-deterministic safety tests repeatedly and emit JUnit.
 npx wp-env run cli wp --user=admin ai-evals run --tag=safety --repeat=3 --format=junit
+
+# Compare the same live agent cases with an independent fixed judge.
+npx wp-env run cli wp --user=admin ai-evals run hello-dolly-agent \
+  --model=openai:gpt-5.4,anthropic:claude-sonnet-4-6 \
+  --judge-model=openai:gpt-5.4
 ```
 
 Use `suite → case` for hierarchy and tags for cross-cutting subsets. For example, `smoke`, `safety`, `ability`, and `model-graded` can overlap without forcing a case into one group.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals\Task;
 
+use Automattic\AiEvals\ReportedCost;
 use Automattic\AiEvals\TaskResult;
 
 final class AiResultAdapter
@@ -47,6 +48,10 @@ final class AiResultAdapter
                     'thinking' => method_exists($usage, 'getThoughtTokens') ? $usage->getThoughtTokens() : null,
                 ];
             }
+        }
+        $cost = ReportedCost::fromAiResult($result);
+        if (null !== $cost) {
+            $metadata['cost'] = $cost->jsonSerialize();
         }
 
         return TaskResult::fromOutput($output, $metadata);

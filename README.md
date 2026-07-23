@@ -2,7 +2,7 @@
 
 A development-only evaluation harness for plugins built on the WordPress AI Client, Connectors API, and Abilities API.
 
-Plugin authors register one or more suites, then run the same cases from **Tools → AI Evals** or WP-CLI. The harness supports deterministic assertions, custom scorers, performance budgets, and LLM-as-a-judge grading while retaining provider, model, token, latency, score, and failure metadata.
+Plugin authors register one or more suites, then run the same cases from **Tools → AI Evals** or WP-CLI. The harness supports deterministic assertions, custom scorers, performance budgets, LLM-as-a-judge grading, and exact cross-provider model comparisons while retaining provider, model, token, provider-reported cost, latency, score, and failure metadata.
 
 > Status: early development. The Composer package name is `automattic/ai-evals`, but it is not published yet.
 
@@ -169,6 +169,58 @@ use Automattic\AiEvals\Task\AbilityTask;
 ->task(new AbilityTask('my-plugin/summarize-post'))
 ```
 
+## Exact model targets and comparisons
+
+Production plugin behavior should normally use `using_model_preference()` and allow WordPress to select a compatible fallback. An eval comparison needs stricter semantics: a variant labeled with a model must either use that exact provider/model pair or error.
+
+`PromptTask` automatically honors a run-level exact model target after applying its normal builder configuration. For a plugin callback or agent that creates its own prompt builders, register a model-aware callable and pass the context target into that code:
+
+```php
+use Automattic\AiEvals\EvaluationContext;
+
+EvaluationCase::make('agent-answer')
+    ->input('Explain object caching.')
+    ->modelTask(
+        static function (string $input, EvaluationContext $context): TaskResult {
+            return my_plugin_run_agent($input, $context->getModelTarget());
+        },
+        'agent'
+    );
+```
+
+The plugin code under test can apply the optional target directly to every prompt builder:
+
+```php
+$builder = wp_ai_client_prompt($prompt)
+    ->using_model_preference('gpt-5.4', 'claude-sonnet-4-6');
+
+if (null !== $modelTarget) {
+    $builder = $modelTarget->apply($builder);
+}
+```
+
+`ModelTarget::apply()` resolves the exact model through the WordPress PHP AI Client provider registry and calls `using_model()`. It never falls back. The runner also verifies that every model-aware task reports the requested provider and model.
+
+Model-independent tasks such as `AbilityTask` execute once during a comparison. Model-aware tasks execute once per target and repetition. LLM judges use their own optional judge target, so the grader can remain fixed while candidate models change.
+
+When no judge target is supplied, the harness prefers Claude Sonnet 4.6, Gemini 3.1 Pro Preview, then GPT-5.4 and lets the AI Client fall back when necessary. The Admin app selects the first available exact target from that cross-provider order. Filter `wp_ai_evals_judge_model_target_preferences` with an ordered list of `provider:model` targets to change the project-wide policy.
+
+### Reported costs
+
+The WordPress AI Client currently standardizes token usage but not monetary cost. The harness does not maintain a model price table or estimate billing from tokens. When a client or provider reports a cost, `AiResultAdapter` records a normalized `cost` value with an `amount`, `currency`, and optional `source`. Custom tasks may return the same metadata directly:
+
+```php
+TaskResult::fromOutput($answer, [
+    'cost' => [
+        'amount' => 0.00125,
+        'currency' => 'USD',
+        'source' => 'provider',
+    ],
+]);
+```
+
+Integrations can normalize provider-specific billing data with `wp_ai_evals_ai_result_reported_cost`. The filter receives the current value, the AI result object, and its additional provider data; return `null`, a `ReportedCost`, or the array shape above. Reported costs are aggregated by currency and split into task and evaluator totals, just like tokens. Cost summaries and comparison columns appear only when a run contains reported data, and candidate comparisons exclude judge cost.
+
 ## Evaluator types
 
 | Type | Built-ins | Best for |
@@ -201,9 +253,11 @@ Items without an item-level minimum contribute to the weighted aggregate without
 
 ## Admin app
 
-**Tools → AI Evals** opens a WordPress-native app built with `@wordpress/element`, `@wordpress/components`, and `@wordpress/api-fetch`. It can select any combination of registered suites, filter cases with an autocomplete tag-token field, and repeat non-deterministic cases. Runs use short authenticated REST steps, so progress and each case result appear as soon as that case finishes without requiring WebSockets or a queue worker.
+**Tools → AI Evals** opens a WordPress-native app built with `@wordpress/element`, `@wordpress/components`, and `@wordpress/api-fetch`. A new run starts with every registered case selected. Use **+ Add filter** only when a narrower run is needed, then compose suite, tag, and case-ID filters as removable pills. Different filter types intersect while multiple values of one type are alternatives.
 
-Completed reports are retained with their input, expected value, output, task metadata, tool list, token use, provider/model, evaluator reasons, and rubric breakdown. Select any previous run to reopen it, then expand a case to inspect its diagnostics. Reports are stored in non-autoloaded development options and bounded by `wp_ai_evals_history_limit`; use `wp_ai_evals_report_before_store` to redact or remove fields before persistence.
+The **Settings** summary always shows the candidate-model policy, judge model, and repetition count that will be used. Choose **Change** beside any setting to reveal its input, compare exact candidate model targets, pin or change the judge, or repeat non-deterministic cases. The first connected judge in the configured preference order is selected automatically, while **Use evaluator defaults** restores per-evaluator model fallback. Model discovery and explicit refresh remain available without occupying the default form. Runs use short authenticated REST steps, so progress and each case result appear as soon as that case finishes without requiring WebSockets or a queue worker.
+
+Completed reports are retained with their input, expected value, output, task metadata, tool list, token use, provider-reported cost, requested and resolved provider/model, evaluator reasons, rubric breakdown, and per-model comparison summaries. Comparison runs group every model variant under its shared test case in aligned result, score, latency, token, optional cost, and tool columns. Best score, latency, token, and reported cost values are identified, while the other rows show their delta from the best, before any model is expanded for full diagnostics. Candidate token and cost comparisons exclude judge usage while total run diagnostics retain both task and evaluator usage. Select any previous run to reopen it. Reports are stored in non-autoloaded development options and bounded by `wp_ai_evals_history_limit`; use `wp_ai_evals_report_before_store` to redact or remove fields before persistence.
 
 The TypeScript admin app lives in `src/admin`, with its components, API contracts, and utilities split into focused modules. Compiled assets are generated in `build/admin` and excluded from source control. Run `npm run build` after installing Node dependencies and whenever the admin source changes.
 
@@ -215,6 +269,9 @@ The hierarchy is **suite → case**, and orthogonal subsets use **tags**. “Tag
 # Discover everything registered by active plugins.
 wp ai-evals list
 
+# Discover model targets from configured providers.
+wp ai-evals models
+
 # Run all cases.
 wp ai-evals run
 
@@ -225,6 +282,12 @@ wp ai-evals run --tag=smoke,safety
 
 # Sample non-deterministic cases repeatedly.
 wp ai-evals run --tag=quality --repeat=5
+
+# Pin an exact model or compare several on the identical selection.
+wp ai-evals run --tag=quality --model=openai:gpt-5.4
+wp ai-evals run --tag=quality \
+  --model=openai:gpt-5.4,anthropic:claude-sonnet-4-6 \
+  --judge-model=google:gemini-3.1-pro-preview
 
 # Machine-readable CI output.
 wp ai-evals run --format=json
@@ -257,8 +320,10 @@ Defining `WP_AI_EVALS_ENABLED` as `false` always disables the harness.
 
 ## Design notes
 
-- Connectors remain the source of provider discovery and credentials; the harness never stores API keys.
-- Prompt tasks request a compatible model through the core AI Client and record the provider/model actually chosen.
+- Connectors remain the source of provider connection metadata and credentials; the harness never stores API keys.
+- Available model metadata and exact model instances come from providers in the WordPress PHP AI Client registry. Dynamic catalogs are cached for five minutes in Admin and can be refreshed.
+- Prompt tasks use normal portable preferences by default, or exact no-fallback model targets during a comparison, and always record the provider/model actually chosen.
+- Costs are displayed only when reported by a provider or integration; the harness never stores or applies model pricing.
 - Admin and WP-CLI use the same registry, selection, runner, evaluator, and report objects.
 - Recent summaries and bounded full reports are stored in non-autoloaded WordPress options for previous-run inspection.
 - Composer's bootstrap has a process-wide guard so multiple vendored copies do not register duplicate UI or CLI surfaces.
@@ -276,7 +341,7 @@ npm run demo:setup
 npm run env:start
 ```
 
-The included `.wp-env.json` pins WordPress 7.0.2, mounts the sample, and installs the official OpenAI provider. See the [sample README](examples/hello-dolly-ai/README.md) for credential setup, Admin access, and eval commands.
+The included `.wp-env.json` pins WordPress 7.0.2, mounts the sample, and installs the official OpenAI and Anthropic providers. See the [sample README](examples/hello-dolly-ai/README.md) for credential setup, Admin access, and eval commands.
 
 ## Development
 

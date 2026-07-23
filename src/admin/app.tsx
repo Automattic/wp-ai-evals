@@ -7,7 +7,8 @@ import {
 	Card,
 	CardBody,
 	CardHeader,
-	CheckboxControl,
+	ComboboxControl,
+	Dropdown,
 	FormTokenField,
 	Notice,
 	Spinner,
@@ -20,12 +21,15 @@ import {
 	useRef,
 	useState,
 } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { Report } from './components/report';
 import { RunHistory } from './components/run-history';
 import { settings } from './settings';
 import type {
+	ModelCatalog,
+	ModelCatalogEntry,
+	ModelCatalogResponse,
 	RunHistoryItem,
 	RunReport,
 	RunResponse,
@@ -34,22 +38,39 @@ import type {
 } from './types';
 import {
 	errorMessage,
-	normalizeTokens,
+	normalizeModelTargets,
 	reportFromSession,
 	setRunUrl,
 } from './utils';
 
+type FilterKind = 'suite' | 'tag' | 'case';
+type SettingKind = 'models' | 'judge' | 'repetitions';
+
 export function App() {
-	const allSuiteIds = useMemo(
-		() => settings.suites.map( ( suite ) => suite.id ),
+	const registeredCases = useMemo(
+		() =>
+			settings.suites.flatMap( ( suite ) =>
+				suite.cases.map( ( evalCase ) => ( {
+					...evalCase,
+					suiteId: suite.id,
+				} ) )
+			),
 		[]
 	);
 	const availableTags = useMemo( () => settings.tags, [] );
-	const [ selectedSuites, setSelectedSuites ] =
-		useState< string[] >( allSuiteIds );
+	const [ selectedSuites, setSelectedSuites ] = useState< string[] >( [] );
 	const [ selectedTags, setSelectedTags ] = useState< string[] >( [] );
-	const [ cases, setCases ] = useState( '' );
+	const [ caseIds, setCaseIds ] = useState< string[] >( [] );
 	const [ repetitions, setRepetitions ] = useState( '1' );
+	const [ modelTargets, setModelTargets ] = useState< string[] >( [] );
+	const [ judgeModelTarget, setJudgeModelTarget ] = useState( '' );
+	const [ filterKind, setFilterKind ] = useState< FilterKind | null >( null );
+	const [ editingSetting, setEditingSetting ] =
+		useState< SettingKind | null >( null );
+	const [ modelCatalog, setModelCatalog ] = useState< ModelCatalog | null >(
+		null
+	);
+	const [ isLoadingModels, setIsLoadingModels ] = useState( false );
 	const [ history, setHistory ] = useState< RunHistoryItem[] >(
 		settings.history
 	);
@@ -61,6 +82,47 @@ export function App() {
 	const [ isRunning, setIsRunning ] = useState( false );
 	const [ loadingRunId, setLoadingRunId ] = useState( '' );
 	const reportRef = useRef< HTMLElement >( null );
+	const defaultJudgeApplied = useRef( false );
+
+	const modelSuggestion = ( model: ModelCatalogEntry ) =>
+		`${ model.provider_name } · ${ model.name } (${ model.target })`;
+	const caseSuggestion = ( evalCase: ( typeof registeredCases )[ number ] ) =>
+		`${ evalCase.qualified_id } · ${ evalCase.label }`;
+
+	const loadModels = async ( refresh = false ) => {
+		setIsLoadingModels( true );
+		try {
+			const response = await apiFetch< ModelCatalogResponse >( {
+				path: `${ settings.rest.models }${
+					refresh ? '?refresh=true' : ''
+				}`,
+			} );
+			setModelCatalog( response.catalog );
+			if (
+				! defaultJudgeApplied.current &&
+				response.catalog.default_judge_target
+			) {
+				setJudgeModelTarget( response.catalog.default_judge_target );
+				defaultJudgeApplied.current = true;
+			}
+		} catch ( requestError ) {
+			setError(
+				errorMessage(
+					requestError,
+					__(
+						'Available models could not be loaded. You can still enter provider:model targets manually.',
+						'wp-ai-evals'
+					)
+				)
+			);
+		} finally {
+			setIsLoadingModels( false );
+		}
+	};
+
+	useEffect( () => {
+		void loadModels();
+	}, [] );
 
 	const scrollToReport = () => {
 		window.setTimeout( () => {
@@ -125,12 +187,37 @@ export function App() {
 		};
 	}, [] );
 
-	const toggleSuite = ( suiteId: string, checked: boolean ) => {
-		setSelectedSuites( ( current ) =>
-			checked
-				? [ ...new Set( [ ...current, suiteId ] ) ]
-				: current.filter( ( id ) => id !== suiteId )
-		);
+	const addFilter = ( kind: FilterKind, value: string ) => {
+		if ( kind === 'suite' ) {
+			setSelectedSuites( ( current ) => [
+				...new Set( [ ...current, value ] ),
+			] );
+		} else if ( kind === 'tag' ) {
+			setSelectedTags( ( current ) => [
+				...new Set( [ ...current, value ] ),
+			] );
+		} else {
+			setCaseIds( ( current ) => [
+				...new Set( [ ...current, value ] ),
+			] );
+		}
+		setFilterKind( null );
+	};
+
+	const removeFilter = ( kind: FilterKind, value: string ) => {
+		if ( kind === 'suite' ) {
+			setSelectedSuites( ( current ) =>
+				current.filter( ( id ) => id !== value )
+			);
+		} else if ( kind === 'tag' ) {
+			setSelectedTags( ( current ) =>
+				current.filter( ( tag ) => tag !== value )
+			);
+		} else {
+			setCaseIds( ( current ) =>
+				current.filter( ( id ) => id !== value )
+			);
+		}
 	};
 
 	const continueSession = async ( initialSession: RunSession ) => {
@@ -186,14 +273,13 @@ export function App() {
 				data: {
 					suites: selectedSuites,
 					tags: selectedTags,
-					cases: cases
-						.split( ',' )
-						.map( ( value ) => value.trim() )
-						.filter( Boolean ),
+					cases: caseIds,
 					repetitions: Math.max(
 						1,
 						Math.min( 10, Number.parseInt( repetitions, 10 ) || 1 )
 					),
+					model_targets: modelTargets,
+					judge_model_target: judgeModelTarget,
 				},
 			} );
 
@@ -245,7 +331,58 @@ export function App() {
 		}
 	};
 
-	const allSelected = selectedSuites.length === allSuiteIds.length;
+	const filteredCaseCount = useMemo(
+		() =>
+			registeredCases.filter( ( evalCase ) => {
+				if (
+					selectedSuites.length > 0 &&
+					! selectedSuites.includes( evalCase.suiteId )
+				) {
+					return false;
+				}
+				if (
+					caseIds.length > 0 &&
+					! caseIds.includes( evalCase.id ) &&
+					! caseIds.includes( evalCase.qualified_id )
+				) {
+					return false;
+				}
+				return (
+					selectedTags.length === 0 ||
+					evalCase.tags.some( ( tag ) =>
+						selectedTags.includes( tag )
+					)
+				);
+			} ).length,
+		[ caseIds, registeredCases, selectedSuites, selectedTags ]
+	);
+	const filterCount =
+		selectedSuites.length + selectedTags.length + caseIds.length;
+	const modelTargetName = ( target: string ) => {
+		const model = modelCatalog?.models.find(
+			( item ) => item.target === target
+		);
+		return model ? `${ model.provider_name } · ${ model.name }` : target;
+	};
+	const candidateModelSummary =
+		modelTargets.length === 0
+			? __( "Each task's model preferences", 'wp-ai-evals' )
+			: modelTargets.map( modelTargetName ).join( ', ' );
+	const judgeModelSummary = judgeModelTarget
+		? modelTargetName( judgeModelTarget )
+		: __( "Each evaluator's model preferences", 'wp-ai-evals' );
+	const repetitionCount = Math.max(
+		1,
+		Math.min( 10, Number.parseInt( repetitions, 10 ) || 1 )
+	);
+	const repetitionSummary =
+		repetitionCount === 1
+			? __( 'Once per case', 'wp-ai-evals' )
+			: sprintf(
+					/* translators: %d is the number of repetitions. */
+					__( '%d times per case', 'wp-ai-evals' ),
+					repetitionCount
+			  );
 	const activeRunId = report?.id || liveSession?.id || '';
 
 	return (
@@ -264,34 +401,18 @@ export function App() {
 					</p>
 				</div>
 				<div className="wp-ai-evals-platform">
-					<div>
-						<span
-							className={ `wp-ai-evals-ready ${
-								settings.platform.text_supported
-									? 'is-ready'
-									: ''
-							}` }
-						>
-							<span aria-hidden="true" />
-							{ settings.platform.text_supported
-								? __( 'Text generation ready', 'wp-ai-evals' )
-								: __(
-										'Text generation unavailable',
-										'wp-ai-evals'
-								  ) }
-						</span>
-						<small>
-							{ sprintf(
-								/* translators: 1: WordPress version, 2: number of AI connectors. */
-								__(
-									'WordPress %1$s · %2$d AI connectors',
-									'wp-ai-evals'
-								),
-								settings.platform.wordpress_version,
-								settings.platform.connector_count
-							) }
-						</small>
-					</div>
+					<strong>
+						{ sprintf(
+							/* translators: %d is the number of active AI connectors. */
+							_n(
+								'%d active connector',
+								'%d active connectors',
+								settings.platform.connector_count,
+								'wp-ai-evals'
+							),
+							settings.platform.connector_count
+						) }
+					</strong>
 					<Button
 						variant="secondary"
 						href={ settings.urls.connectors }
@@ -320,116 +441,619 @@ export function App() {
 						</div>
 					</CardHeader>
 					<CardBody>
-						<div className="wp-ai-evals-field-heading">
-							<div>
-								<h3>{ __( 'Suites', 'wp-ai-evals' ) }</h3>
-								<p>
-									{ __(
-										'Choose one or more registered suites.',
-										'wp-ai-evals'
-									) }
-								</p>
-							</div>
-							<Button
-								variant="link"
-								onClick={ () =>
-									setSelectedSuites(
-										allSelected ? [] : allSuiteIds
-									)
-								}
-							>
-								{ allSelected
-									? __( 'Clear all', 'wp-ai-evals' )
-									: __( 'Select all', 'wp-ai-evals' ) }
-							</Button>
-						</div>
-						<div className="wp-ai-evals-suite-options">
-							{ settings.suites.map( ( suite ) => (
-								<div
-									className="wp-ai-evals-suite-option"
-									key={ suite.id }
-								>
-									<CheckboxControl
-										label={ suite.label }
-										help={ sprintf(
-											/* translators: %d is a number of evaluation cases. */
-											__( '%d cases', 'wp-ai-evals' ),
-											suite.case_count
-										) }
-										checked={ selectedSuites.includes(
-											suite.id
-										) }
-										onChange={ ( checked ) =>
-											toggleSuite( suite.id, checked )
-										}
-									/>
-									<code>{ suite.id }</code>
+						<section className="wp-ai-evals-config-section">
+							<div className="wp-ai-evals-field-heading">
+								<div>
+									<h3>{ __( 'Filters', 'wp-ai-evals' ) }</h3>
+									<p>
+										{ filterCount === 0
+											? sprintf(
+													/* translators: %d is the number of cases. */
+													__(
+														'All %d registered cases',
+														'wp-ai-evals'
+													),
+													registeredCases.length
+											  )
+											: sprintf(
+													/* translators: 1: matching cases, 2: total cases. */
+													__(
+														'%1$d of %2$d cases match',
+														'wp-ai-evals'
+													),
+													filteredCaseCount,
+													registeredCases.length
+											  ) }
+									</p>
 								</div>
-							) ) }
-						</div>
-
-						<div className="wp-ai-evals-fields">
-							<FormTokenField
-								label={ __( 'Tags', 'wp-ai-evals' ) }
-								value={ selectedTags }
-								suggestions={ availableTags.filter(
-									( tag ) => ! selectedTags.includes( tag )
-								) }
-								onChange={ ( tokensValue ) =>
-									setSelectedTags(
-										normalizeTokens(
-											tokensValue,
-											availableTags
-										)
-									)
-								}
-								placeholder={ __(
-									'Search registered tags…',
-									'wp-ai-evals'
-								) }
-								__experimentalExpandOnFocus
-								__experimentalAutoSelectFirstMatch
-								__experimentalShowHowTo={ false }
-								__experimentalValidateInput={ ( tag ) =>
-									availableTags.includes( tag )
-								}
-								__next40pxDefaultSize
-							/>
-							<p className="wp-ai-evals-help">
-								{ __(
-									'Optional. Cases matching any selected tag are included.',
-									'wp-ai-evals'
-								) }
-							</p>
-
-							<div className="wp-ai-evals-field-row">
-								<TextControl
-									label={ __( 'Case IDs', 'wp-ai-evals' ) }
-									help={ __(
-										'Optional comma-separated case or suite/case IDs.',
-										'wp-ai-evals'
+								<Dropdown
+									contentClassName="wp-ai-evals-dropdown"
+									renderToggle={ ( { isOpen, onToggle } ) => (
+										<Button
+											variant="secondary"
+											size="compact"
+											aria-expanded={ isOpen }
+											onClick={ () => {
+												if ( isOpen ) {
+													setFilterKind( null );
+												}
+												onToggle();
+											} }
+										>
+											{ __(
+												'+ Add filter',
+												'wp-ai-evals'
+											) }
+										</Button>
 									) }
-									placeholder="suite/case, another-case"
-									value={ cases }
-									onChange={ setCases }
-									__next40pxDefaultSize
-								/>
-								<TextControl
-									className="wp-ai-evals-repetitions"
-									label={ __( 'Repetitions', 'wp-ai-evals' ) }
-									help={ __(
-										'From 1 to 10.',
-										'wp-ai-evals'
+									renderContent={ ( { onClose } ) => (
+										<div className="wp-ai-evals-dropdown-content">
+											{ ! filterKind && (
+												<>
+													<strong>
+														{ __(
+															'Filter cases by',
+															'wp-ai-evals'
+														) }
+													</strong>
+													<div className="wp-ai-evals-dropdown-options">
+														<Button
+															variant="tertiary"
+															onClick={ () =>
+																setFilterKind(
+																	'tag'
+																)
+															}
+														>
+															{ __(
+																'Tag',
+																'wp-ai-evals'
+															) }
+														</Button>
+														<Button
+															variant="tertiary"
+															onClick={ () =>
+																setFilterKind(
+																	'case'
+																)
+															}
+														>
+															{ __(
+																'Case ID',
+																'wp-ai-evals'
+															) }
+														</Button>
+														<Button
+															variant="tertiary"
+															onClick={ () =>
+																setFilterKind(
+																	'suite'
+																)
+															}
+														>
+															{ __(
+																'Suite',
+																'wp-ai-evals'
+															) }
+														</Button>
+													</div>
+												</>
+											) }
+											{ filterKind === 'tag' && (
+												<ComboboxControl
+													label={ __(
+														'Tag',
+														'wp-ai-evals'
+													) }
+													value={ null }
+													options={ availableTags
+														.filter(
+															( tag ) =>
+																! selectedTags.includes(
+																	tag
+																)
+														)
+														.map( ( tag ) => ( {
+															value: tag,
+															label: tag,
+														} ) ) }
+													onChange={ ( value ) => {
+														if ( value ) {
+															addFilter(
+																'tag',
+																value
+															);
+															onClose();
+														}
+													} }
+													__next40pxDefaultSize
+												/>
+											) }
+											{ filterKind === 'case' && (
+												<FormTokenField
+													label={ __(
+														'Case ID',
+														'wp-ai-evals'
+													) }
+													value={ [] }
+													suggestions={ registeredCases
+														.filter(
+															( evalCase ) =>
+																! caseIds.includes(
+																	evalCase.qualified_id
+																)
+														)
+														.map( caseSuggestion ) }
+													onChange={ (
+														tokensValue
+													) => {
+														const token =
+															tokensValue[ 0 ];
+														if ( ! token ) {
+															return;
+														}
+														const value =
+															typeof token ===
+															'string'
+																? token
+																: token.value;
+														const evalCase =
+															registeredCases.find(
+																( item ) =>
+																	caseSuggestion(
+																		item
+																	) ===
+																		value ||
+																	item.qualified_id ===
+																		value
+															);
+														addFilter(
+															'case',
+															evalCase?.qualified_id ??
+																value.trim()
+														);
+														onClose();
+													} }
+													placeholder={ __(
+														'Search or enter a case ID…',
+														'wp-ai-evals'
+													) }
+													__experimentalExpandOnFocus
+													__experimentalAutoSelectFirstMatch
+													__experimentalShowHowTo={
+														false
+													}
+													__next40pxDefaultSize
+												/>
+											) }
+											{ filterKind === 'suite' && (
+												<ComboboxControl
+													label={ __(
+														'Suite',
+														'wp-ai-evals'
+													) }
+													value={ null }
+													options={ settings.suites
+														.filter(
+															( suite ) =>
+																! selectedSuites.includes(
+																	suite.id
+																)
+														)
+														.map( ( suite ) => ( {
+															value: suite.id,
+															label: `${ suite.label } (${ suite.id })`,
+														} ) ) }
+													onChange={ ( value ) => {
+														if ( value ) {
+															addFilter(
+																'suite',
+																value
+															);
+															onClose();
+														}
+													} }
+													__next40pxDefaultSize
+												/>
+											) }
+											{ filterKind && (
+												<Button
+													variant="link"
+													onClick={ () =>
+														setFilterKind( null )
+													}
+												>
+													{ __(
+														'Back',
+														'wp-ai-evals'
+													) }
+												</Button>
+											) }
+										</div>
 									) }
-									type="number"
-									min={ 1 }
-									max={ 10 }
-									value={ repetitions }
-									onChange={ setRepetitions }
-									__next40pxDefaultSize
 								/>
 							</div>
-						</div>
+							<div className="wp-ai-evals-filter-pills">
+								{ selectedSuites.map( ( suiteId ) => (
+									<Button
+										key={ `suite-${ suiteId }` }
+										className="wp-ai-evals-filter-pill"
+										variant="secondary"
+										onClick={ () =>
+											removeFilter( 'suite', suiteId )
+										}
+										aria-label={ sprintf(
+											/* translators: %s is a suite ID. */
+											__(
+												'Remove suite filter %s',
+												'wp-ai-evals'
+											),
+											suiteId
+										) }
+									>
+										<span>
+											{ __( 'Suite', 'wp-ai-evals' ) }
+										</span>
+										{ suiteId }
+										<b aria-hidden="true">×</b>
+									</Button>
+								) ) }
+								{ selectedTags.map( ( tag ) => (
+									<Button
+										key={ `tag-${ tag }` }
+										className="wp-ai-evals-filter-pill"
+										variant="secondary"
+										onClick={ () =>
+											removeFilter( 'tag', tag )
+										}
+										aria-label={ sprintf(
+											/* translators: %s is a tag. */
+											__(
+												'Remove tag filter %s',
+												'wp-ai-evals'
+											),
+											tag
+										) }
+									>
+										<span>
+											{ __( 'Tag', 'wp-ai-evals' ) }
+										</span>
+										{ tag }
+										<b aria-hidden="true">×</b>
+									</Button>
+								) ) }
+								{ caseIds.map( ( caseId ) => (
+									<Button
+										key={ `case-${ caseId }` }
+										className="wp-ai-evals-filter-pill"
+										variant="secondary"
+										onClick={ () =>
+											removeFilter( 'case', caseId )
+										}
+										aria-label={ sprintf(
+											/* translators: %s is a case ID. */
+											__(
+												'Remove case filter %s',
+												'wp-ai-evals'
+											),
+											caseId
+										) }
+									>
+										<span>
+											{ __( 'Case', 'wp-ai-evals' ) }
+										</span>
+										{ caseId }
+										<b aria-hidden="true">×</b>
+									</Button>
+								) ) }
+								{ filterCount === 0 && (
+									<span className="wp-ai-evals-default-pill">
+										{ __( 'All cases', 'wp-ai-evals' ) }
+									</span>
+								) }
+							</div>
+						</section>
+
+						<section className="wp-ai-evals-config-section">
+							<div className="wp-ai-evals-field-heading">
+								<div>
+									<h3>{ __( 'Settings', 'wp-ai-evals' ) }</h3>
+									<p>
+										{ __(
+											'Current values for this run',
+											'wp-ai-evals'
+										) }
+									</p>
+								</div>
+							</div>
+
+							<div className="wp-ai-evals-settings">
+								<div className="wp-ai-evals-setting">
+									<div className="wp-ai-evals-setting-heading">
+										<div>
+											<strong>
+												{ __(
+													'Candidate models',
+													'wp-ai-evals'
+												) }
+											</strong>
+											<span>
+												{ candidateModelSummary }
+											</span>
+										</div>
+										<Button
+											variant="link"
+											aria-expanded={
+												editingSetting === 'models'
+											}
+											onClick={ () =>
+												setEditingSetting(
+													editingSetting === 'models'
+														? null
+														: 'models'
+												)
+											}
+										>
+											{ editingSetting === 'models'
+												? __( 'Done', 'wp-ai-evals' )
+												: __(
+														'Change',
+														'wp-ai-evals'
+												  ) }
+										</Button>
+									</div>
+									{ editingSetting === 'models' && (
+										<div className="wp-ai-evals-setting-control">
+											<div>
+												{ __(
+													'Select exact targets to compare, or leave empty to use each task’s preferences.',
+													'wp-ai-evals'
+												) }
+											</div>
+											<FormTokenField
+												label={ __(
+													'Exact provider:model targets',
+													'wp-ai-evals'
+												) }
+												value={ modelTargets }
+												suggestions={ (
+													modelCatalog?.models ?? []
+												)
+													.filter(
+														( model ) =>
+															! modelTargets.includes(
+																model.target
+															)
+													)
+													.map( modelSuggestion ) }
+												onChange={ ( tokensValue ) => {
+													const normalized =
+														tokensValue.map(
+															( token ) => {
+																const value =
+																	typeof token ===
+																	'string'
+																		? token
+																		: token.value;
+																const catalogModel =
+																	modelCatalog?.models.find(
+																		(
+																			model
+																		) =>
+																			modelSuggestion(
+																				model
+																			) ===
+																				value ||
+																			model.target ===
+																				value
+																	);
+																return (
+																	catalogModel?.target ??
+																	value
+																);
+															}
+														);
+													setModelTargets(
+														normalizeModelTargets(
+															normalized
+														)
+													);
+												} }
+												placeholder={ __(
+													'Search models or enter provider:model…',
+													'wp-ai-evals'
+												) }
+												__experimentalExpandOnFocus
+												__experimentalAutoSelectFirstMatch
+												__experimentalShowHowTo={
+													false
+												}
+												__next40pxDefaultSize
+											/>
+										</div>
+									) }
+								</div>
+
+								<div className="wp-ai-evals-setting">
+									<div className="wp-ai-evals-setting-heading">
+										<div>
+											<strong>
+												{ __(
+													'Judge model',
+													'wp-ai-evals'
+												) }
+											</strong>
+											<span>{ judgeModelSummary }</span>
+										</div>
+										<Button
+											variant="link"
+											aria-expanded={
+												editingSetting === 'judge'
+											}
+											onClick={ () =>
+												setEditingSetting(
+													editingSetting === 'judge'
+														? null
+														: 'judge'
+												)
+											}
+										>
+											{ editingSetting === 'judge'
+												? __( 'Done', 'wp-ai-evals' )
+												: __(
+														'Change',
+														'wp-ai-evals'
+												  ) }
+										</Button>
+									</div>
+									{ editingSetting === 'judge' && (
+										<div className="wp-ai-evals-setting-control">
+											<div>
+												{ __(
+													'Keep this model fixed while comparing candidates.',
+													'wp-ai-evals'
+												) }
+											</div>
+											<ComboboxControl
+												label={ __(
+													'Exact judge target',
+													'wp-ai-evals'
+												) }
+												value={
+													judgeModelTarget || null
+												}
+												options={ (
+													modelCatalog?.models ?? []
+												).map( ( model ) => ( {
+													value: model.target,
+													label: modelSuggestion(
+														model
+													),
+												} ) ) }
+												onChange={ ( value ) =>
+													setJudgeModelTarget(
+														value ?? ''
+													)
+												}
+												__next40pxDefaultSize
+											/>
+											{ judgeModelTarget && (
+												<Button
+													variant="link"
+													onClick={ () =>
+														setJudgeModelTarget(
+															''
+														)
+													}
+												>
+													{ __(
+														'Use evaluator defaults',
+														'wp-ai-evals'
+													) }
+												</Button>
+											) }
+										</div>
+									) }
+								</div>
+
+								<div className="wp-ai-evals-setting">
+									<div className="wp-ai-evals-setting-heading">
+										<div>
+											<strong>
+												{ __(
+													'Repetitions',
+													'wp-ai-evals'
+												) }
+											</strong>
+											<span>{ repetitionSummary }</span>
+										</div>
+										<Button
+											variant="link"
+											aria-expanded={
+												editingSetting === 'repetitions'
+											}
+											onClick={ () =>
+												setEditingSetting(
+													editingSetting ===
+														'repetitions'
+														? null
+														: 'repetitions'
+												)
+											}
+										>
+											{ editingSetting === 'repetitions'
+												? __( 'Done', 'wp-ai-evals' )
+												: __(
+														'Change',
+														'wp-ai-evals'
+												  ) }
+										</Button>
+									</div>
+									{ editingSetting === 'repetitions' && (
+										<div className="wp-ai-evals-setting-control">
+											<div>
+												{ __(
+													'Repeat every matching case from 1 to 10 times.',
+													'wp-ai-evals'
+												) }
+											</div>
+											<TextControl
+												className="wp-ai-evals-repetitions"
+												label={ __(
+													'Repetitions',
+													'wp-ai-evals'
+												) }
+												type="number"
+												min={ 1 }
+												max={ 10 }
+												value={ repetitions }
+												onChange={ setRepetitions }
+												__next40pxDefaultSize
+											/>
+										</div>
+									) }
+								</div>
+							</div>
+
+							<div className="wp-ai-evals-model-status">
+								<span>
+									{ modelCatalog
+										? sprintf(
+												/* translators: %d is a number of discovered models. */
+												__(
+													'%d models available',
+													'wp-ai-evals'
+												),
+												modelCatalog.models.length
+										  )
+										: __(
+												'Loading available models…',
+												'wp-ai-evals'
+										  ) }
+								</span>
+								<Button
+									variant="link"
+									isBusy={ isLoadingModels }
+									onClick={ () => void loadModels( true ) }
+								>
+									{ __( 'Refresh', 'wp-ai-evals' ) }
+								</Button>
+							</div>
+
+							{ ( modelCatalog?.errors.length ?? 0 ) > 0 && (
+								<Notice
+									status="warning"
+									isDismissible={ false }
+									className="wp-ai-evals-model-warning"
+								>
+									{ __(
+										'Some providers could not return their model catalog:',
+										'wp-ai-evals'
+									) }{ ' ' }
+									{ modelCatalog?.errors.join( ' · ' ) }
+								</Notice>
+							) }
+						</section>
 
 						<div className="wp-ai-evals-run-actions">
 							<Button
@@ -437,7 +1061,7 @@ export function App() {
 								size="compact"
 								isBusy={ isRunning }
 								disabled={
-									isRunning || selectedSuites.length === 0
+									isRunning || filteredCaseCount === 0
 								}
 								onClick={ runEvaluations }
 							>

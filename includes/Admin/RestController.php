@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Automattic\AiEvals\Admin;
 
 use Automattic\AiEvals\Kernel;
+use Automattic\AiEvals\ModelCatalog;
 use Automattic\AiEvals\Runner;
+use Automattic\AiEvals\RunConfiguration;
 use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Storage\HistoryStore;
 use Automattic\AiEvals\Storage\RunSessionStore;
 
 final class RestController
 {
+    private const MODEL_CATALOG_TRANSIENT = 'wp_ai_evals_model_catalog';
     private Kernel $kernel;
 
     public function __construct(Kernel $kernel)
@@ -23,22 +26,28 @@ final class RestController
     {
         register_rest_route(
             'wp-ai-evals/v1',
+            '/models',
+            [
+                'methods' => \WP_REST_Server::READABLE,
+                'callback' => [$this, 'models'],
+                'permission_callback' => [$this, 'canRun'],
+                'args' => [
+                    'refresh' => [
+                        'type' => 'boolean',
+                        'default' => false,
+                    ],
+                ],
+            ]
+        );
+
+        register_rest_route(
+            'wp-ai-evals/v1',
             '/run',
             [
                 'methods' => \WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'run'],
                 'permission_callback' => [$this, 'canRun'],
-                'args' => [
-                    'suites' => $this->listArgument(),
-                    'tags' => $this->listArgument(),
-                    'cases' => $this->listArgument(),
-                    'repetitions' => [
-                        'type' => 'integer',
-                        'default' => 1,
-                        'minimum' => 1,
-                        'maximum' => 10,
-                    ],
-                ],
+                'args' => $this->selectionArguments(),
             ]
         );
 
@@ -89,13 +98,35 @@ final class RestController
         return current_user_can($this->capability());
     }
 
+    public function models(\WP_REST_Request $request): \WP_REST_Response
+    {
+        $refresh = (bool) $request->get_param('refresh');
+        $catalog = !$refresh && function_exists('get_transient')
+            ? get_transient(self::MODEL_CATALOG_TRANSIENT)
+            : false;
+
+        if (!is_array($catalog) || !array_key_exists('default_judge_target', $catalog)) {
+            $catalog = (new ModelCatalog())->discover();
+            if (function_exists('set_transient')) {
+                set_transient(self::MODEL_CATALOG_TRANSIENT, $catalog, 5 * MINUTE_IN_SECONDS);
+            }
+        }
+
+        return rest_ensure_response(['catalog' => $catalog]);
+    }
+
     public function run(\WP_REST_Request $request): \WP_REST_Response
     {
         $this->kernel->initialize();
-        $report = (new Runner())->run(
-            $this->kernel->getRegistry(),
-            $this->selection($request)
-        );
+        try {
+            $report = (new Runner())->run(
+                $this->kernel->getRegistry(),
+                $this->selection($request),
+                $this->configuration($request)
+            );
+        } catch (\Throwable $error) {
+            return new \WP_REST_Response(['message' => $error->getMessage()], 400);
+        }
 
         $history = new HistoryStore();
         $history->save($report);
@@ -110,11 +141,16 @@ final class RestController
     public function startSession(\WP_REST_Request $request): \WP_REST_Response
     {
         $this->kernel->initialize();
-        $session = (new RunSessionStore())->start(
-            $this->kernel->getRegistry(),
-            $this->selection($request),
-            new Runner()
-        );
+        try {
+            $session = (new RunSessionStore())->start(
+                $this->kernel->getRegistry(),
+                $this->selection($request),
+                new Runner(),
+                $this->configuration($request)
+            );
+        } catch (\Throwable $error) {
+            return new \WP_REST_Response(['message' => $error->getMessage()], 400);
+        }
 
         return rest_ensure_response(['session' => $session]);
     }
@@ -185,6 +221,11 @@ final class RestController
                 'minimum' => 1,
                 'maximum' => 10,
             ],
+            'model_targets' => $this->listArgument(),
+            'judge_model_target' => [
+                'type' => 'string',
+                'default' => '',
+            ],
         ];
     }
 
@@ -195,6 +236,14 @@ final class RestController
             $this->sanitizeList($request->get_param('cases')),
             $this->sanitizeList($request->get_param('tags')),
             max(1, min(10, (int) $request->get_param('repetitions')))
+        );
+    }
+
+    private function configuration(\WP_REST_Request $request): RunConfiguration
+    {
+        return RunConfiguration::fromStrings(
+            $this->sanitizeList($request->get_param('model_targets')),
+            sanitize_text_field((string) $request->get_param('judge_model_target'))
         );
     }
 

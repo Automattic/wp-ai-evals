@@ -2,11 +2,17 @@
 // @jsx createElement
 
 import { Button, Card, CardBody, CardHeader } from '@wordpress/components';
+import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import { createElement } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import type { RunHistoryItem } from '../types';
-import { formatDuration, formatNumber, formatPercent } from '../utils';
+import {
+	formatCosts,
+	formatDuration,
+	formatNumber,
+	formatPercent,
+} from '../utils';
 
 interface RunHistoryProps {
 	history: RunHistoryItem[];
@@ -21,6 +27,11 @@ export function RunHistory( {
 	activeRunId,
 	loadingRunId,
 }: RunHistoryProps ) {
+	const showReportedCost = history.some(
+		( run ) => Object.keys( run.diagnostics?.costs ?? {} ).length > 0
+	);
+	const dateTimeFormat = getDateSettings().formats.datetime;
+
 	return (
 		<Card className="wp-ai-evals-card wp-ai-evals-history">
 			<CardHeader>
@@ -40,10 +51,18 @@ export function RunHistory( {
 							<thead>
 								<tr>
 									<th>{ __( 'Run', 'wp-ai-evals' ) }</th>
-									<th>{ __( 'Started', 'wp-ai-evals' ) }</th>
 									<th>{ __( 'Passed', 'wp-ai-evals' ) }</th>
 									<th>{ __( 'Score', 'wp-ai-evals' ) }</th>
+									<th>{ __( 'Models', 'wp-ai-evals' ) }</th>
 									<th>{ __( 'Tokens', 'wp-ai-evals' ) }</th>
+									{ showReportedCost && (
+										<th>
+											{ __(
+												'Reported cost',
+												'wp-ai-evals'
+											) }
+										</th>
+									) }
 									<th>{ __( 'Duration', 'wp-ai-evals' ) }</th>
 								</tr>
 							</thead>
@@ -59,6 +78,7 @@ export function RunHistory( {
 									>
 										<td>
 											<Button
+												className="wp-ai-evals-history-run"
 												variant="link"
 												isBusy={
 													loadingRunId === run.id
@@ -67,12 +87,41 @@ export function RunHistory( {
 													onInspect( run.id )
 												}
 											>
-												<code>{ run.id }</code>
+												<time
+													dateTime={ run.started_at }
+													title={ run.started_at }
+												>
+													{ dateI18n(
+														dateTimeFormat,
+														run.started_at
+													) }
+												</time>
 											</Button>
+											<code className="wp-ai-evals-history-run-id">
+												{ run.id }
+											</code>
 										</td>
-										<td>{ run.started_at }</td>
 										<td>{ `${ run.passed }/${ run.total }` }</td>
 										<td>{ formatPercent( run.score ) }</td>
+										<td>
+											{ run.configuration?.model_targets
+												?.length
+												? run.configuration.model_targets.map(
+														( target ) => (
+															<code
+																key={
+																	target.id
+																}
+															>
+																{ target.id }
+															</code>
+														)
+												  )
+												: __(
+														'Default',
+														'wp-ai-evals'
+												  ) }
+										</td>
 										<td>
 											{ run.diagnostics?.tokens
 												? formatNumber(
@@ -81,6 +130,13 @@ export function RunHistory( {
 												  )
 												: '—' }
 										</td>
+										{ showReportedCost && (
+											<td>
+												{ formatCosts(
+													run.diagnostics?.costs
+												) }
+											</td>
+										) }
 										<td>
 											{ formatDuration(
 												run.duration_ms

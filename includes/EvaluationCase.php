@@ -7,6 +7,7 @@ namespace Automattic\AiEvals;
 use Automattic\AiEvals\Evaluator\EvaluatorInterface;
 use Automattic\AiEvals\Exception\InvalidArgumentException;
 use Automattic\AiEvals\Task\CallableTask;
+use Automattic\AiEvals\Task\ModelCallableTask;
 use Automattic\AiEvals\Task\TaskInterface;
 
 final class EvaluationCase
@@ -78,6 +79,20 @@ final class EvaluationCase
         }
 
         $this->task = new CallableTask($task);
+
+        return $this;
+    }
+
+    /**
+     * Registers a callable task that promises to honor the run's exact model target.
+     *
+     * The callable receives the same ($input, EvaluationContext $context) arguments
+     * as a regular callable task and should pass $context->getModelTarget() to the
+     * AI client code it exercises.
+     */
+    public function modelTask(callable $task, string $type = 'callable:model'): self
+    {
+        $this->task = new ModelCallableTask($task, $type);
 
         return $this;
     }

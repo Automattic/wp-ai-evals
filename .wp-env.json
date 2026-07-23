@@ -5,7 +5,8 @@
     "testsEnvironment": false,
     "plugins": [
         "./examples/hello-dolly-ai",
-        "https://downloads.wordpress.org/plugin/ai-provider-for-openai.latest-stable.zip"
+        "https://downloads.wordpress.org/plugin/ai-provider-for-openai.latest-stable.zip",
+        "https://downloads.wordpress.org/plugin/ai-provider-for-anthropic.latest-stable.zip"
     ],
     "config": {
         "WP_DEBUG": true,

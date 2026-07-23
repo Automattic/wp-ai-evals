@@ -9,6 +9,7 @@ use Automattic\AiEvals\EvaluationCase;
 use Automattic\AiEvals\Evaluator\ExactMatch;
 use Automattic\AiEvals\Registry;
 use Automattic\AiEvals\Report\JunitFormatter;
+use Automattic\AiEvals\RunConfiguration;
 use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\Suite;
 
@@ -27,5 +28,24 @@ final class JunitFormatterTest extends TestCase
         self::assertStringContainsString('<testsuite', $xml);
         self::assertStringContainsString('failures="1"', $xml);
         self::assertStringContainsString('<failure', $xml);
+    }
+
+    public function testIncludesModelVariantInTestCaseName(): void
+    {
+        $case = EvaluationCase::make('model-case')
+            ->modelTask(static fn($input, $context): \Automattic\AiEvals\TaskResult =>
+                \Automattic\AiEvals\TaskResult::fromOutput('ok', [
+                    'provider' => $context->getModelTarget()->getProviderId(),
+                    'model' => $context->getModelTarget()->getModelId(),
+                ]))
+            ->expected('ok')
+            ->evaluateWith(new ExactMatch());
+        $report = (new Runner())->run(
+            (new Registry())->register(Suite::make('suite')->addCase($case)),
+            null,
+            RunConfiguration::fromStrings(['openai:gpt-test'])
+        );
+
+        self::assertStringContainsString('model-case#1@openai:gpt-test', (new JunitFormatter())->format($report));
     }
 }

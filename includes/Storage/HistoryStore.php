@@ -92,11 +92,16 @@ final class HistoryStore
             'passed' => $report->getPassed(),
             'failed' => $report->getFailed(),
             'score' => $report->getScore(),
+            'configuration' => $report->getConfiguration()->jsonSerialize(),
             'diagnostics' => $report->getDiagnostics(),
+            'variants' => $report->getVariants(),
             'results' => array_map(
                 static fn(CaseResult $result): array => [
                     'qualified_id' => $result->getQualifiedId(),
                     'iteration' => $result->getIteration(),
+                    'model_target' => null !== $result->getModelTarget()
+                        ? $result->getModelTarget()->jsonSerialize()
+                        : null,
                     'status' => $result->getStatus(),
                     'score' => $result->getScore(),
                     'duration_ms' => $result->getDurationMilliseconds(),

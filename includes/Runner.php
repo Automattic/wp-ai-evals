@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace Automattic\AiEvals;
 
 use Throwable;
+use Automattic\AiEvals\Task\ModelTargetAwareTaskInterface;
 
 final class Runner
 {
-    public function run(Registry $registry, ?Selection $selection = null): RunReport
+    public function run(
+        Registry $registry,
+        ?Selection $selection = null,
+        ?RunConfiguration $configuration = null
+    ): RunReport
     {
         $selection = $selection ?? Selection::all();
+        $configuration = $configuration ?? new RunConfiguration();
         $startedAt = gmdate('c');
         $started = microtime(true);
         $results = [];
 
-        $this->action('wp_ai_evals_before_run', $registry, $selection);
+        $this->action('wp_ai_evals_before_run', $registry, $selection, $configuration);
 
         foreach ($registry->all() as $suite) {
             foreach ($suite->getCases() as $case) {
@@ -23,8 +29,16 @@ final class Runner
                     continue;
                 }
 
-                for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
-                    $results[] = $this->runCase($suite, $case, $iteration);
+                foreach ($this->targetsForCase($case, $configuration) as $modelTarget) {
+                    for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
+                        $results[] = $this->runCase(
+                            $suite,
+                            $case,
+                            $iteration,
+                            $modelTarget,
+                            $configuration
+                        );
+                    }
                 }
             }
         }
@@ -33,7 +47,8 @@ final class Runner
             $this->makeRunId(),
             $startedAt,
             (microtime(true) - $started) * 1000,
-            $results
+            $results,
+            $configuration
         );
 
         $this->action('wp_ai_evals_after_run', $report);
@@ -41,9 +56,17 @@ final class Runner
         return $report;
     }
 
-    public function runCase(Suite $suite, EvaluationCase $case, int $iteration = 1): CaseResult
-    {
-        $context = new EvaluationContext($suite, $case, $iteration);
+    public function runCase(
+        Suite $suite,
+        EvaluationCase $case,
+        int $iteration = 1,
+        ?ModelTarget $modelTarget = null,
+        ?RunConfiguration $configuration = null
+    ): CaseResult {
+        $configuration = $configuration ?? new RunConfiguration(
+            null !== $modelTarget ? [$modelTarget] : []
+        );
+        $context = new EvaluationContext($suite, $case, $iteration, $modelTarget, $configuration);
         $started = microtime(true);
         $taskType = 'unconfigured';
 
@@ -53,6 +76,27 @@ final class Runner
             $task = $case->getTask();
             $taskType = $task->getType();
             $result = $task->run($case->getInput(), $context);
+            if (null !== $modelTarget && $task instanceof ModelTargetAwareTaskInterface) {
+                if (!$modelTarget->matchesMetadata($result->getMetadata())) {
+                    $actualProvider = isset($result->getMetadata()['provider'])
+                        ? (string) $result->getMetadata()['provider']
+                        : 'unknown';
+                    $actualModel = isset($result->getMetadata()['model'])
+                        ? (string) $result->getMetadata()['model']
+                        : 'unknown';
+                    throw new Exception\RuntimeException(sprintf(
+                        'Model-aware task did not use exact target "%s"; resolved "%s:%s".',
+                        $modelTarget->getId(),
+                        $actualProvider,
+                        $actualModel
+                    ));
+                }
+
+                $result = $result->withMetadata([
+                    'requested_model_target' => $modelTarget->getId(),
+                    'model_target_match' => true,
+                ]);
+            }
             $taskDuration = (microtime(true) - $started) * 1000;
             $result = $result->withMetric('duration_ms', $taskDuration);
             $evaluatorResults = [];
@@ -104,7 +148,8 @@ final class Runner
                 $case->getInput(),
                 $case->getExpected(),
                 $case->getTags(),
-                $case->getMetadata()
+                $case->getMetadata(),
+                $modelTarget
             );
         } catch (Throwable $error) {
             $caseResult = new CaseResult(
@@ -122,7 +167,8 @@ final class Runner
                 $case->getInput(),
                 $case->getExpected(),
                 $case->getTags(),
-                $case->getMetadata()
+                $case->getMetadata(),
+                $modelTarget
             );
         }
 
@@ -146,5 +192,23 @@ final class Runner
         } catch (Throwable $error) {
             return uniqid(gmdate('Ymd-His') . '-', true);
         }
+    }
+
+    /**
+     * Model-independent tasks execute once instead of being duplicated in every model variant.
+     *
+     * @return list<ModelTarget|null>
+     */
+    public function targetsForCase(EvaluationCase $case, RunConfiguration $configuration): array
+    {
+        try {
+            if ($case->getTask() instanceof ModelTargetAwareTaskInterface) {
+                return $configuration->getExecutionTargets();
+            }
+        } catch (Throwable $error) {
+            // Invalid case configuration is captured as a normal case error during execution.
+        }
+
+        return [null];
     }
 }

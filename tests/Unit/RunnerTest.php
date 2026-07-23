@@ -7,9 +7,11 @@ namespace Automattic\AiEvals\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Automattic\AiEvals\EvaluationCase;
+use Automattic\AiEvals\EvaluationContext;
 use Automattic\AiEvals\Evaluator\ContainsText;
 use Automattic\AiEvals\Evaluator\ExactMatch;
 use Automattic\AiEvals\Registry;
+use Automattic\AiEvals\RunConfiguration;
 use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Suite;
@@ -27,6 +29,7 @@ final class RunnerTest extends TestCase
                         "Hello {$input}",
                         [
                             'tokens' => ['input' => 4, 'output' => 2, 'total' => 6, 'thinking' => 0],
+                            'cost' => ['amount' => 0.0015, 'currency' => 'USD'],
                             'tools' => ['plugin/search'],
                             'provider' => 'test-provider',
                             'model' => 'test-model',
@@ -63,6 +66,8 @@ final class RunnerTest extends TestCase
             $report->getResults()[0]->getDurationMilliseconds()
         );
         self::assertSame(12, $report->getDiagnostics()['tokens']['total']);
+        self::assertSame(0.003, $report->getDiagnostics()['task_costs']['USD']);
+        self::assertSame(2, $report->getDiagnostics()['cost_observations']['task']);
         self::assertSame(['plugin/search'], $report->getDiagnostics()['tools']);
 
         $serialized = $report->jsonSerialize();
@@ -105,5 +110,86 @@ final class RunnerTest extends TestCase
 
         self::assertSame('error', $report->getResults()[0]->getStatus());
         self::assertStringContainsString('has no task', $report->getResults()[0]->getError());
+    }
+
+    public function testRunsTheSameSelectionAcrossExactModelTargets(): void
+    {
+        $case = EvaluationCase::make('comparison')
+            ->modelTask(
+                static function (string $input, EvaluationContext $context): TaskResult {
+                    $target = $context->getModelTarget();
+
+                    return TaskResult::fromOutput($input, [
+                        'provider' => $target->getProviderId(),
+                        'model' => $target->getModelId(),
+                        'tokens' => ['input' => 2, 'output' => 1, 'total' => 3],
+                        'cost' => ['amount' => 0.002, 'currency' => 'USD'],
+                    ]);
+                }
+            )
+            ->input('same input')
+            ->expected('same input')
+            ->evaluateWith(new ExactMatch());
+
+        $configuration = RunConfiguration::fromStrings([
+            'openai:gpt-test',
+            'anthropic:claude-test',
+        ]);
+        $report = (new Runner())->run(
+            (new Registry())->register(Suite::make('suite')->addCase($case)),
+            null,
+            $configuration
+        );
+
+        self::assertSame(2, $report->getTotal());
+        self::assertCount(2, $report->getVariants());
+        self::assertSame('openai:gpt-test', $report->getVariants()[0]['id']);
+        self::assertSame(3, $report->getVariants()[0]['diagnostics']['task_tokens']['total']);
+        self::assertSame(0.002, $report->getVariants()[0]['diagnostics']['task_costs']['USD']);
+        self::assertSame(
+            'anthropic:claude-test',
+            $report->getResults()[1]->getModelTarget()->getId()
+        );
+        self::assertTrue(
+            $report->getResults()[1]->getTaskResult()->getMetadata()['model_target_match']
+        );
+    }
+
+    public function testErrorsWhenModelAwareTaskIgnoresExactTarget(): void
+    {
+        $case = EvaluationCase::make('ignored-target')
+            ->modelTask(static fn(): TaskResult => TaskResult::fromOutput('ok', [
+                'provider' => 'other',
+                'model' => 'fallback',
+            ]))
+            ->expected('ok')
+            ->evaluateWith(new ExactMatch());
+
+        $report = (new Runner())->run(
+            (new Registry())->register(Suite::make('suite')->addCase($case)),
+            null,
+            RunConfiguration::fromStrings(['openai:gpt-test'])
+        );
+
+        self::assertSame('error', $report->getResults()[0]->getStatus());
+        self::assertStringContainsString('did not use exact target', $report->getResults()[0]->getError());
+    }
+
+    public function testRunsModelIndependentTaskOnlyOnceDuringComparison(): void
+    {
+        $case = EvaluationCase::make('contract')
+            ->task(static fn(): string => 'ok')
+            ->expected('ok')
+            ->evaluateWith(new ExactMatch());
+
+        $report = (new Runner())->run(
+            (new Registry())->register(Suite::make('suite')->addCase($case)),
+            null,
+            RunConfiguration::fromStrings(['openai:gpt-test', 'anthropic:claude-test'])
+        );
+
+        self::assertSame(1, $report->getTotal());
+        self::assertSame([], $report->getVariants());
+        self::assertNull($report->getResults()[0]->getModelTarget());
     }
 }

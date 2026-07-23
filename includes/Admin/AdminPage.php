@@ -142,6 +142,7 @@ final class AdminPage
                 'start' => '/wp-ai-evals/v1/run-sessions',
                 'sessions' => '/wp-ai-evals/v1/run-sessions/',
                 'runs' => '/wp-ai-evals/v1/runs/',
+                'models' => '/wp-ai-evals/v1/models',
             ],
             'urls' => [
                 'connectors' => admin_url('options-connectors.php'),
@@ -156,18 +157,24 @@ final class AdminPage
         $aiConnectors = array_filter($connectors, static function (array $connector): bool {
             return isset($connector['type']) && in_array($connector['type'], ['ai', 'ai_provider'], true);
         });
-        $textSupported = false;
+        $activeConnectorCount = 0;
 
-        if (function_exists('wp_ai_client_prompt')) {
-            $support = wp_ai_client_prompt('eval capability check')->is_supported_for_text_generation();
-            $textSupported = !is_wp_error($support) && (bool) $support;
+        if (class_exists(\WordPress\AiClient\AiClient::class)) {
+            try {
+                $registry = \WordPress\AiClient\AiClient::defaultRegistry();
+                foreach (array_keys($aiConnectors) as $connectorId) {
+                    if ($registry->hasProvider((string) $connectorId)
+                        && $registry->isProviderConfigured((string) $connectorId)
+                    ) {
+                        ++$activeConnectorCount;
+                    }
+                }
+            } catch (\Throwable $error) {
+                $activeConnectorCount = 0;
+            }
         }
 
-        return [
-            'wordpress_version' => get_bloginfo('version'),
-            'connector_count' => count($aiConnectors),
-            'text_supported' => $textSupported,
-        ];
+        return ['connector_count' => $activeConnectorCount];
     }
 
     private function capability(): string

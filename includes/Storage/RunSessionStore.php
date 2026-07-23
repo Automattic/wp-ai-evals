@@ -8,6 +8,7 @@ use Automattic\AiEvals\CaseResult;
 use Automattic\AiEvals\Exception\RuntimeException;
 use Automattic\AiEvals\Registry;
 use Automattic\AiEvals\RunReport;
+use Automattic\AiEvals\RunConfiguration;
 use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\Selection;
 
@@ -26,9 +27,14 @@ final class RunSessionStore
     }
 
     /** @return array<string, mixed> */
-    public function start(Registry $registry, Selection $selection, Runner $runner): array
-    {
+    public function start(
+        Registry $registry,
+        Selection $selection,
+        Runner $runner,
+        ?RunConfiguration $configuration = null
+    ): array {
         $this->assertAvailable();
+        $configuration = $configuration ?? new RunConfiguration();
         $queue = [];
 
         foreach ($registry->all() as $suite) {
@@ -37,12 +43,15 @@ final class RunSessionStore
                     continue;
                 }
 
-                for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
-                    $queue[] = [
-                        'suite' => $suite->getId(),
-                        'case' => $case->getId(),
-                        'iteration' => $iteration,
-                    ];
+                foreach ($runner->targetsForCase($case, $configuration) as $modelTarget) {
+                    for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
+                        $queue[] = [
+                            'suite' => $suite->getId(),
+                            'case' => $case->getId(),
+                            'iteration' => $iteration,
+                            'model_target' => null !== $modelTarget ? $modelTarget->jsonSerialize() : null,
+                        ];
+                    }
                 }
             }
         }
@@ -54,6 +63,7 @@ final class RunSessionStore
             'total' => count($queue),
             'queue' => $queue,
             'results' => [],
+            'configuration' => $configuration->jsonSerialize(),
         ];
 
         $this->write($session);
@@ -86,7 +96,17 @@ final class RunSessionStore
                 throw new RuntimeException(sprintf('Unknown evaluation case "%s/%s".', $suite->getId(), $caseId));
             }
 
-            $session['results'][] = $runner->runCase($suite, $cases[$caseId], (int) $next['iteration']);
+            $configuration = $this->configuration($session);
+            $modelTarget = isset($next['model_target']) && is_array($next['model_target'])
+                ? \Automattic\AiEvals\ModelTarget::fromArray($next['model_target'])
+                : null;
+            $session['results'][] = $runner->runCase(
+                $suite,
+                $cases[$caseId],
+                (int) $next['iteration'],
+                $modelTarget,
+                $configuration
+            );
         }
 
         if ([] !== $session['queue']) {
@@ -140,7 +160,9 @@ final class RunSessionStore
             'remaining' => count($session['queue']),
             'complete' => $complete,
             'duration_ms' => $report->getDurationMilliseconds(),
+            'configuration' => $report->getConfiguration()->jsonSerialize(),
             'summary' => $report->jsonSerialize()['summary'],
+            'variants' => $report->getVariants(),
             'results' => array_map(
                 static fn(CaseResult $result): array => $result->jsonSerialize(),
                 $session['results']
@@ -155,8 +177,17 @@ final class RunSessionStore
             (string) $session['id'],
             (string) $session['started_at'],
             (microtime(true) - (float) $session['started_microtime']) * 1000,
-            $session['results']
+            $session['results'],
+            $this->configuration($session)
         );
+    }
+
+    /** @param array<string, mixed> $session */
+    private function configuration(array $session): RunConfiguration
+    {
+        return isset($session['configuration']) && is_array($session['configuration'])
+            ? RunConfiguration::fromArray($session['configuration'])
+            : new RunConfiguration();
     }
 
     private function key(string $runId): string

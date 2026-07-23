@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace HelloDollyAI;
 
+use Automattic\AiEvals\ModelTarget;
+use Automattic\AiEvals\ReportedCost;
 use Throwable;
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
@@ -41,7 +43,7 @@ PROMPT;
      * @param list<array{role?: string, content?: string}> $history
      * @return array<string, mixed>|\WP_Error
      */
-    public function respond(string $message, array $history = [])
+    public function respond(string $message, array $history = [], ?ModelTarget $modelTarget = null)
     {
         if (!function_exists('wp_ai_client_prompt') || !class_exists('WP_AI_Client_Ability_Function_Resolver')) {
             return new \WP_Error(
@@ -58,11 +60,20 @@ PROMPT;
         $tools = [];
         $sources = [];
         $usage = ['input' => 0, 'output' => 0, 'total' => 0, 'thinking' => 0];
+        $reportedCosts = [];
 
-        $builder = wp_ai_client_prompt($message)
-            ->using_system_instruction(self::SYSTEM_INSTRUCTION)
-            ->using_model_preference(...self::TOOL_MODEL_PREFERENCES)
-            ->using_abilities(...Abilities::names());
+        try {
+            $builder = wp_ai_client_prompt($message)
+                ->using_system_instruction(self::SYSTEM_INSTRUCTION)
+                ->using_abilities(...Abilities::names());
+            $builder = $this->usingModel($builder, $modelTarget);
+        } catch (Throwable $error) {
+            return new \WP_Error(
+                'hello_dolly_ai_model_unavailable',
+                $error->getMessage(),
+                ['status' => 503]
+            );
+        }
 
         if ([] !== $historyMessages) {
             $builder = $builder->with_history(...$historyMessages);
@@ -83,11 +94,12 @@ PROMPT;
             }
 
             $this->addUsage($usage, $result);
+            $this->addReportedCost($reportedCosts, $result);
             $assistantMessage = $result->toMessage();
 
             if (!$resolver->has_ability_calls($assistantMessage)) {
                 try {
-                    return [
+                    $response = [
                         'answer' => $result->toText(),
                         'provider' => $result->getProviderMetadata()->getId(),
                         'model' => $result->getModelMetadata()->getId(),
@@ -95,6 +107,12 @@ PROMPT;
                         'tools' => array_values(array_unique($tools)),
                         'sources' => array_values($sources),
                     ];
+                    $reportedCost = $this->reportedCost($reportedCosts);
+                    if (null !== $reportedCost) {
+                        $response['cost'] = $reportedCost;
+                    }
+
+                    return $response;
                 } catch (Throwable $error) {
                     return new \WP_Error(
                         'hello_dolly_ai_empty_response',
@@ -113,12 +131,20 @@ PROMPT;
             $this->collectSources($functionResponses, $sources);
             $conversation[] = $assistantMessage;
 
-            $builder = wp_ai_client_prompt()
-                ->with_history(...$conversation)
-                ->with_message_parts(...$functionResponses->getParts())
-                ->using_system_instruction(self::SYSTEM_INSTRUCTION)
-                ->using_model_preference(...self::TOOL_MODEL_PREFERENCES)
-                ->using_abilities(...Abilities::names());
+            try {
+                $builder = wp_ai_client_prompt()
+                    ->with_history(...$conversation)
+                    ->with_message_parts(...$functionResponses->getParts())
+                    ->using_system_instruction(self::SYSTEM_INSTRUCTION)
+                    ->using_abilities(...Abilities::names());
+                $builder = $this->usingModel($builder, $modelTarget);
+            } catch (Throwable $error) {
+                return new \WP_Error(
+                    'hello_dolly_ai_model_unavailable',
+                    $error->getMessage(),
+                    ['status' => 503]
+                );
+            }
 
             $conversation[] = $functionResponses;
         }
@@ -128,6 +154,16 @@ PROMPT;
             __('The chat agent reached its tool-call limit before producing an answer.', 'hello-dolly-ai'),
             ['status' => 502]
         );
+    }
+
+    /** @param object $builder @return object */
+    private function usingModel($builder, ?ModelTarget $modelTarget)
+    {
+        if (null !== $modelTarget) {
+            return $modelTarget->apply($builder);
+        }
+
+        return $builder->using_model_preference(...self::TOOL_MODEL_PREFERENCES);
     }
 
     /**
@@ -164,6 +200,36 @@ PROMPT;
         $usage['output'] += $tokens->getCompletionTokens();
         $usage['total'] += $tokens->getTotalTokens();
         $usage['thinking'] += $tokens->getThoughtTokens() ?? 0;
+    }
+
+    /** @param array<string, float> $costs @param object $result */
+    private function addReportedCost(array &$costs, $result): void
+    {
+        $cost = ReportedCost::fromAiResult($result);
+        if (null === $cost) {
+            return;
+        }
+
+        $currency = $cost->getCurrency();
+        $costs[$currency] = ($costs[$currency] ?? 0.0) + $cost->getAmount();
+    }
+
+    /**
+     * @param array<string, float> $costs
+     * @return array{amount: float, currency: string}|null
+     */
+    private function reportedCost(array $costs): ?array
+    {
+        if (1 !== count($costs)) {
+            return null;
+        }
+
+        $currency = (string) array_key_first($costs);
+
+        return [
+            'amount' => $costs[$currency],
+            'currency' => $currency,
+        ];
     }
 
     /** @param list<string> $tools */

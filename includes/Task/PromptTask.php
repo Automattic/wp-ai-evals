@@ -10,7 +10,7 @@ use Automattic\AiEvals\Exception\InvalidArgumentException;
 use Automattic\AiEvals\Exception\RuntimeException;
 use Automattic\AiEvals\TaskResult;
 
-final class PromptTask implements TaskInterface
+final class PromptTask implements ModelTargetAwareTaskInterface
 {
     /** @var string|Closure */
     private $prompt;
@@ -62,6 +62,10 @@ final class PromptTask implements TaskInterface
             if (null !== $configured) {
                 $builder = $configured;
             }
+        }
+
+        if (null !== $context->getModelTarget()) {
+            $builder = $context->getModelTarget()->apply($builder);
         }
 
         $supportMethod = 'is_supported_for_' . ('multimodal' === $this->modality ? 'text' : $this->modality) . '_generation';

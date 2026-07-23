@@ -34,6 +34,7 @@ final class CaseResult implements JsonSerializable
 
     /** @var array<string, mixed> */
     private array $caseMetadata;
+    private ?ModelTarget $modelTarget;
 
     /**
      * @param list<EvaluatorResult> $evaluatorResults
@@ -57,7 +58,8 @@ final class CaseResult implements JsonSerializable
         $input = null,
         $expected = null,
         array $tags = [],
-        array $caseMetadata = []
+        array $caseMetadata = [],
+        ?ModelTarget $modelTarget = null
     ) {
         $this->suiteId = $suiteId;
         $this->caseId = $caseId;
@@ -74,6 +76,7 @@ final class CaseResult implements JsonSerializable
         $this->expected = $expected;
         $this->tags = $tags;
         $this->caseMetadata = $caseMetadata;
+        $this->modelTarget = $modelTarget;
     }
 
     public function getQualifiedId(): string
@@ -142,6 +145,11 @@ final class CaseResult implements JsonSerializable
         return 'passed' === $this->status;
     }
 
+    public function getModelTarget(): ?ModelTarget
+    {
+        return $this->modelTarget;
+    }
+
     /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
@@ -156,6 +164,7 @@ final class CaseResult implements JsonSerializable
             'tags' => $this->tags,
             'metadata' => TaskResult::normalize($this->caseMetadata),
             'iteration' => $this->iteration,
+            'model_target' => $this->modelTarget,
             'status' => $this->status,
             'score' => $this->score,
             'duration_ms' => $this->durationMilliseconds,

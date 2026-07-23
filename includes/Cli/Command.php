@@ -5,14 +5,54 @@ declare(strict_types=1);
 namespace Automattic\AiEvals\Cli;
 
 use Automattic\AiEvals\Kernel;
+use Automattic\AiEvals\ModelCatalog;
 use Automattic\AiEvals\Report\JunitFormatter;
 use Automattic\AiEvals\Runner;
+use Automattic\AiEvals\RunConfiguration;
 use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Storage\HistoryStore;
 
 /** Commands for discovering and running WordPress AI evaluations. */
 final class Command
 {
+    /**
+     * Lists models exposed by configured WordPress AI Client providers.
+     *
+     * ## OPTIONS
+     *
+     * [--format=<format>]
+     * : table or json. Default: table.
+     *
+     * @param list<string> $args
+     * @param array<string, mixed> $assocArgs
+     */
+    public function models(array $args, array $assocArgs): void
+    {
+        Kernel::instance()->initialize();
+        $catalog = (new ModelCatalog())->discover();
+        $format = isset($assocArgs['format']) ? (string) $assocArgs['format'] : 'table';
+
+        if ('json' === $format) {
+            \WP_CLI::line($this->json($catalog));
+            return;
+        }
+
+        $items = array_map(
+            static fn(array $model): array => [
+                'target' => $model['target'],
+                'provider' => $model['provider_name'],
+                'model' => $model['name'],
+                'capabilities' => implode(',', $model['capabilities']),
+            ],
+            isset($catalog['models']) && is_array($catalog['models']) ? $catalog['models'] : []
+        );
+        \WP_CLI\Utils\format_items('table', $items, ['target', 'provider', 'model', 'capabilities']);
+
+        foreach (isset($catalog['errors']) && is_array($catalog['errors']) ? $catalog['errors'] : [] as $error) {
+            \WP_CLI::warning((string) $error);
+        }
+    }
+
     /**
      * Lists registered suites and cases.
      *
@@ -73,6 +113,12 @@ final class Command
      * [--repeat=<count>]
      * : Number of times to run each selected case. Default: 1.
      *
+     * [--model=<targets>]
+     * : Comma-separated exact provider:model targets. Multiple targets run as a comparison.
+     *
+     * [--judge-model=<target>]
+     * : Exact provider:model target for LLM judges. Kept independent from candidate targets.
+     *
      * [--format=<format>]
      * : table, json, or junit. Default: table.
      *
@@ -92,10 +138,20 @@ final class Command
         $cases = $this->split($assocArgs['case'] ?? '');
         $tags = $this->split($assocArgs['tag'] ?? '');
         $repeat = isset($assocArgs['repeat']) ? (int) $assocArgs['repeat'] : 1;
+        try {
+            $configuration = RunConfiguration::fromStrings(
+                $this->split($assocArgs['model'] ?? ''),
+                isset($assocArgs['judge-model']) ? (string) $assocArgs['judge-model'] : ''
+            );
+        } catch (\Throwable $error) {
+            \WP_CLI::error($error->getMessage());
+            return;
+        }
 
         $report = (new Runner())->run(
             Kernel::instance()->getRegistry(),
-            new Selection($suites, $cases, $tags, $repeat)
+            new Selection($suites, $cases, $tags, $repeat),
+            $configuration
         );
 
         if (!isset($assocArgs['no-store'])) {
@@ -112,6 +168,9 @@ final class Command
             foreach ($report->getResults() as $result) {
                 $items[] = [
                     'case' => $result->getQualifiedId(),
+                    'model' => null !== $result->getModelTarget()
+                        ? $result->getModelTarget()->getId()
+                        : 'default',
                     'iteration' => $result->getIteration(),
                     'status' => $result->getStatus(),
                     'score' => number_format($result->getScore(), 3),
@@ -119,7 +178,11 @@ final class Command
                     'error' => $result->getError(),
                 ];
             }
-            \WP_CLI\Utils\format_items('table', $items, ['case', 'iteration', 'status', 'score', 'duration_ms', 'error']);
+            \WP_CLI\Utils\format_items(
+                'table',
+                $items,
+                ['case', 'model', 'iteration', 'status', 'score', 'duration_ms', 'error']
+            );
             \WP_CLI::log(sprintf(
                 'Run %s: %d/%d passed; aggregate score %.3f.',
                 $report->getId(),
@@ -127,6 +190,25 @@ final class Command
                 $report->getTotal(),
                 $report->getScore()
             ));
+
+            if ($configuration->isComparison()) {
+                $variants = array_map(
+                    static fn(array $variant): array => [
+                        'model' => $variant['id'],
+                        'passed' => sprintf('%d/%d', $variant['passed'], $variant['total']),
+                        'score' => number_format((float) $variant['score'], 3),
+                        'task_tokens' => (int) $variant['diagnostics']['task_tokens']['total'],
+                        'duration_ms' => number_format((float) $variant['duration_ms'], 1),
+                    ],
+                    $report->getVariants()
+                );
+                \WP_CLI::log('Model comparison:');
+                \WP_CLI\Utils\format_items(
+                    'table',
+                    $variants,
+                    ['model', 'passed', 'score', 'task_tokens', 'duration_ms']
+                );
+            }
         }
 
         $failUnder = isset($assocArgs['fail-under']) ? (float) $assocArgs['fail-under'] : 0.0;

@@ -25,7 +25,12 @@ final class JunitFormatter
             $lines[] = sprintf(
                 '  <testcase classname="%s" name="%s" time="%.6f">',
                 $this->escape($result->getSuiteId()),
-                $this->escape($result->getCaseId() . '#' . $result->getIteration()),
+                $this->escape(
+                    $result->getCaseId()
+                    . '#'
+                    . $result->getIteration()
+                    . (null !== $result->getModelTarget() ? '@' . $result->getModelTarget()->getId() : '')
+                ),
                 $result->getDurationMilliseconds() / 1000
             );
 

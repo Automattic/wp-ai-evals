@@ -96,34 +96,9 @@ $warning: #996800;
 	background: rgb(255 255 255 / 82%);
 	box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
 
-	> div {
-		display: grid;
+	> strong {
 		flex: 1;
-		gap: 5px;
-	}
-
-	small {
-		color: $muted;
-	}
-}
-
-.wp-ai-evals-ready {
-	display: inline-flex;
-	align-items: center;
-	gap: 7px;
-	font-weight: 600;
-
-	> span {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: $negative;
-		box-shadow: 0 0 0 3px rgb(179 45 46 / 12%);
-	}
-
-	&.is-ready > span {
-		background: $positive;
-		box-shadow: 0 0 0 3px rgb(22 128 60 / 12%);
+		font-size: 13px;
 	}
 }
 
@@ -162,61 +137,165 @@ $warning: #996800;
 	}
 }
 
-.wp-ai-evals-suite-options {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 12px;
-	margin: 16px 0 26px;
-}
+.wp-ai-evals-config-section {
 
-.wp-ai-evals-suite-option {
-	position: relative;
-	padding: 14px 14px 12px;
-	border: 1px solid $line;
-	border-radius: 7px;
-	background: $surface;
-
-	&:has(input:checked) {
-		border-color: $accent;
-		background: rgb(56 88 233 / 4%);
-		box-shadow: inset 3px 0 $accent;
+	& + & {
+		margin-top: 22px;
+		padding-top: 22px;
+		border-top: 1px solid $line;
 	}
 
-	.components-base-control {
-		margin-bottom: 0;
-	}
-
-	.components-base-control__help {
-		margin: 3px 0 0 26px;
-	}
-
-	> code {
-		display: inline-block;
-		margin: 8px 0 0 26px;
-		color: $muted;
-		font-size: 11px;
+	h3 {
+		margin-bottom: 3px;
+		font-size: 15px;
 	}
 }
 
-.wp-ai-evals-fields {
-	padding-top: 24px;
-	border-top: 1px solid $line;
+.wp-ai-evals-filter-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 14px;
 }
 
-.wp-ai-evals-help {
-	margin: -4px 0 22px;
-	color: $muted;
+.wp-ai-evals-default-pill,
+.wp-ai-evals-filter-pill.components-button {
+	min-height: 30px;
+	padding: 4px 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 999px;
+	background: #f6f7f7;
+	color: $ink;
 	font-size: 12px;
 }
 
-.wp-ai-evals-field-row {
+.wp-ai-evals-default-pill {
+	display: inline-flex;
+	align-items: center;
+	color: $muted;
+}
+
+.wp-ai-evals-filter-pill.components-button {
+	gap: 7px;
+
+	span {
+		color: $muted;
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	b {
+		color: $muted;
+		font-size: 15px;
+		font-weight: 400;
+		line-height: 1;
+	}
+
+	&:hover {
+		border-color: $negative;
+		color: $negative;
+	}
+}
+
+.wp-ai-evals-dropdown .components-popover__content {
+	min-width: 290px;
+}
+
+.wp-ai-evals-dropdown-content {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 130px;
-	gap: 18px;
+	gap: 12px;
+	width: 290px;
+	padding: 14px;
+
+	> p {
+		margin: 0;
+		color: $muted;
+		font-size: 12px;
+	}
 
 	.components-base-control {
 		margin-bottom: 0;
 	}
+}
+
+.wp-ai-evals-dropdown-options {
+	display: grid;
+	gap: 4px;
+
+	.components-button {
+		justify-content: flex-start;
+		width: 100%;
+	}
+}
+
+.wp-ai-evals-settings {
+	margin-top: 14px;
+	overflow: hidden;
+	border: 1px solid $line;
+	border-radius: 7px;
+	background: #fbfbfc;
+}
+
+.wp-ai-evals-setting {
+	padding: 12px 14px;
+
+	& + & {
+		border-top: 1px solid $line;
+	}
+}
+
+.wp-ai-evals-setting-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+
+	> div {
+		display: grid;
+		gap: 3px;
+	}
+
+	span {
+		color: $muted;
+		font-size: 12px;
+	}
+}
+
+.wp-ai-evals-setting-control {
+	display: grid;
+	gap: 10px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid $line;
+	color: $muted;
+	font-size: 12px;
+
+	.components-base-control {
+		margin: 0;
+	}
+
+	> .components-button.is-link {
+		justify-self: start;
+	}
+}
+
+.wp-ai-evals-repetitions {
+	max-width: 140px;
+}
+
+.wp-ai-evals-model-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+	color: $muted;
+	font-size: 11px;
+}
+
+.wp-ai-evals-model-warning {
+	margin: 12px 0 0;
 }
 
 .wp-ai-evals-run-actions {
@@ -257,6 +336,10 @@ $warning: #996800;
 	grid-template-columns: repeat(5, minmax(0, 1fr));
 	gap: 12px;
 	margin: 22px 0;
+
+	&.has-reported-cost {
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+	}
 }
 
 .wp-ai-evals-stat {
@@ -344,6 +427,21 @@ $warning: #996800;
 	gap: 14px;
 }
 
+.wp-ai-evals-run-targets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+	margin-top: 18px;
+}
+
+.wp-ai-evals-comparison {
+	margin: 22px 0;
+	padding: 18px;
+	border: 1px solid rgb(56 88 233 / 24%);
+	border-radius: 8px;
+	background: rgb(56 88 233 / 4%);
+}
+
 .wp-ai-evals-section-heading small {
 	display: block;
 	margin-top: 5px;
@@ -401,6 +499,52 @@ $warning: #996800;
 .wp-ai-evals-case-results {
 	display: grid;
 	gap: 10px;
+	overflow-x: auto;
+}
+
+.wp-ai-evals-case-comparison-heading {
+	margin: 26px 0 12px;
+}
+
+.wp-ai-evals-case-comparison-groups {
+	display: grid;
+	gap: 14px;
+}
+
+.wp-ai-evals-case-comparison-group {
+	overflow: hidden;
+	border: 1px solid $line;
+	border-radius: 8px;
+	background: $surface;
+
+	> header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 12px 16px;
+		border-bottom: 1px solid $line;
+		background: #f6f7f7;
+
+		> div {
+			display: grid;
+			gap: 3px;
+			min-width: 0;
+		}
+
+		strong,
+		code {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		code,
+		> span {
+			color: $muted;
+			font-size: 11px;
+		}
+	}
 }
 
 .wp-ai-evals-case-result {
@@ -447,17 +591,153 @@ $warning: #996800;
 	}
 }
 
-.wp-ai-evals-case-identity {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	min-width: 0;
+.wp-ai-evals-case-comparison-results {
+	overflow-x: auto;
 
-	> span:last-child {
-		display: grid;
-		gap: 4px;
+	.wp-ai-evals-case-result {
+		border: 0;
+		border-radius: 0;
+
+		& + & {
+			border-top: 1px solid $line;
+		}
+
+		&[open] {
+			box-shadow: none;
+		}
+
+		&.is-failed,
+		&.is-error {
+			border-left: 0;
+			box-shadow: inset 3px 0 $negative;
+		}
+	}
+
+	.wp-ai-evals-case-result.is-grouped > summary {
+		min-height: 64px;
+	}
+}
+
+.wp-ai-evals-case-comparison-columns,
+.wp-ai-evals-case-result.is-grouped > summary {
+	display: grid;
+	grid-template-columns:
+		100px minmax(240px, 1fr) 82px 118px
+		104px 60px 20px;
+	gap: 14px;
+	align-items: center;
+	min-width: 840px;
+	padding-right: 16px;
+	padding-left: 16px;
+}
+
+.wp-ai-evals-case-result-columns,
+.wp-ai-evals-case-result:not(.is-grouped) > summary {
+	display: grid;
+	grid-template-columns:
+		100px minmax(240px, 1fr) 82px 118px
+		104px 60px 20px;
+	gap: 14px;
+	align-items: center;
+	min-width: 840px;
+	padding-right: 16px;
+	padding-left: 16px;
+}
+
+.wp-ai-evals-case-comparison-columns.has-cost,
+.wp-ai-evals-case-result.is-grouped.has-cost > summary,
+.wp-ai-evals-case-result-columns.has-cost,
+.wp-ai-evals-case-result:not(.is-grouped).has-cost > summary {
+	grid-template-columns:
+		100px minmax(220px, 1fr) 82px 112px
+		96px 112px 60px 20px;
+	min-width: 940px;
+}
+
+.wp-ai-evals-case-comparison-columns,
+.wp-ai-evals-case-result-columns {
+	padding-top: 8px;
+	padding-bottom: 8px;
+	color: $muted;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.wp-ai-evals-case-comparison-columns {
+	border-bottom: 1px solid $line;
+	background: #fff;
+}
+
+.wp-ai-evals-case-result-columns {
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+.wp-ai-evals-case-result.is-grouped {
+
+	> summary {
+		padding-top: 10px;
+		padding-bottom: 10px;
+
+		&::after {
+			justify-self: end;
+		}
+	}
+
+	.wp-ai-evals-status,
+	.wp-ai-evals-comparison-model {
 		min-width: 0;
 	}
+}
+
+.wp-ai-evals-comparison-model {
+	overflow: hidden;
+	font-size: 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wp-ai-evals-comparison-metric {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+	color: #3c434a;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+
+	> span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	> small {
+		color: $muted;
+		font-size: 9px;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 1;
+	}
+
+	&.is-best {
+
+		> span {
+			color: $accent;
+			font-weight: 700;
+		}
+
+		> small {
+			color: $accent;
+		}
+	}
+}
+
+.wp-ai-evals-case-identity {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
 
 	strong,
 	code {
@@ -469,22 +749,6 @@ $warning: #996800;
 	code {
 		color: $muted;
 		font-size: 11px;
-	}
-}
-
-.wp-ai-evals-case-summary {
-	display: flex;
-	flex: 0 0 auto;
-	align-items: center;
-	gap: 6px;
-
-	> span {
-		padding: 4px 8px;
-		border-radius: 999px;
-		background: #f0f0f1;
-		color: $muted;
-		font-size: 11px;
-		font-variant-numeric: tabular-nums;
 	}
 }
 
@@ -750,6 +1014,19 @@ $warning: #996800;
 		margin-left: 5px;
 	}
 
+	td > code {
+		display: block;
+		width: max-content;
+		max-width: 300px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	td > code + code {
+		margin-top: 4px;
+	}
+
 	&.is-compact th,
 	&.is-compact td {
 		padding: 11px 12px;
@@ -782,6 +1059,31 @@ $warning: #996800;
 	margin: 0 auto;
 }
 
+.wp-ai-evals-history-run.components-button {
+	height: auto;
+	padding: 0;
+	text-align: left;
+
+	time {
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+}
+
+.wp-ai-evals-history-run-id {
+	overflow: hidden;
+	max-width: 220px;
+	margin-top: 4px;
+	padding: 0;
+	background: transparent;
+	color: $muted;
+	font-size: 10px;
+	font-weight: 400;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 @media (max-width: 1100px) {
 
 	.wp-ai-evals-hero {
@@ -794,7 +1096,8 @@ $warning: #996800;
 		min-width: 0;
 	}
 
-	.wp-ai-evals-summary-grid {
+	.wp-ai-evals-summary-grid,
+	.wp-ai-evals-summary-grid.has-reported-cost {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 }
@@ -809,9 +1112,8 @@ $warning: #996800;
 		padding: 24px 12px 48px;
 	}
 
-	.wp-ai-evals-suite-options,
-	.wp-ai-evals-field-row,
-	.wp-ai-evals-summary-grid {
+	.wp-ai-evals-summary-grid,
+	.wp-ai-evals-summary-grid.has-reported-cost {
 		grid-template-columns: 1fr;
 	}
 
@@ -822,14 +1124,12 @@ $warning: #996800;
 	}
 
 	.wp-ai-evals-section-heading,
+	.wp-ai-evals-field-heading,
+	.wp-ai-evals-setting-heading,
 	.wp-ai-evals-case-result > summary,
 	.wp-ai-evals-evaluators > article > header {
 		align-items: flex-start;
 		flex-direction: column;
-	}
-
-	.wp-ai-evals-case-summary {
-		flex-wrap: wrap;
 	}
 
 	.wp-ai-evals-data-grid {

@@ -2,10 +2,12 @@
 
 The initial scaffold establishes the stable seams: suite and directory registration, tagged cases, task adapters, composable evaluators, multi-item judge rubrics, normalized reports, live Admin runs, previous-run inspection, WP-CLI, repeated sampling, and CI formats.
 
+Exact model experiments are also available now. The harness discovers dynamic model metadata from configured WordPress AI Client providers, accepts explicit `provider:model` targets, applies no-fallback overrides to model-aware tasks, keeps judge selection independent, verifies requested versus resolved models, and compares score, pass rate, latency, candidate-only token usage, and optional provider-reported cost across live and stored run variants.
+
 Likely next increments:
 
 1. **Dataset loaders and parameterization** — JSON, JSONL, and CSV rows that expand into cases without losing stable IDs. PHP iterable and directory loading are available now.
-2. **Baselines and regression comparison** — compare scores, latency, tokens, and selected model against an approved run.
+2. **Baselines and regression comparison** — compare scores, latency, tokens, model targets, and resolved models against an approved run.
 3. **Statistical reports** — mean, median, percentiles, variance, pass-at-k, and confidence intervals for repeated samples.
 4. **Cost budgets** — optional provider price catalogs and per-case/run ceilings, kept separate from core result capture.
 5. **Traces and trajectories** — task/evaluator metadata, tools, sources, providers, models, and tokens are inspectable now; first-class nested spans and multi-turn event timelines remain future work.

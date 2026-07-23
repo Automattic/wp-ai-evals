@@ -47,6 +47,15 @@ final class TaskResult implements JsonSerializable
         return $clone;
     }
 
+    /** @param array<string, mixed> $metadata */
+    public function withMetadata(array $metadata): self
+    {
+        $clone = clone $this;
+        $clone->metadata = array_merge($clone->metadata, $metadata);
+
+        return $clone;
+    }
+
     /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {

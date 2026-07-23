@@ -6,6 +6,7 @@ namespace Automattic\AiEvals\Evaluator;
 
 use Automattic\AiEvals\EvaluationContext;
 use Automattic\AiEvals\EvaluatorResult;
+use Automattic\AiEvals\JudgeModelPreferences;
 use Automattic\AiEvals\Task\AiResultAdapter;
 use Automattic\AiEvals\TaskResult;
 
@@ -25,7 +26,9 @@ final class LlmJudge implements EvaluatorInterface
     {
         $this->rubric = Rubric::from($criteria);
         $this->minimumScore = max(0.0, min(1.0, $minimumScore));
-        $this->modelPreferences = $modelPreferences;
+        $this->modelPreferences = [] !== $modelPreferences
+            ? $modelPreferences
+            : JudgeModelPreferences::modelIds();
     }
 
     /** {@inheritDoc} */
@@ -86,6 +89,9 @@ final class LlmJudge implements EvaluatorInterface
         if ([] !== $this->modelPreferences) {
             $builder = $builder->using_model_preference(...$this->modelPreferences);
         }
+        if (null !== $context->getJudgeModelTarget()) {
+            $builder = $context->getJudgeModelTarget()->apply($builder);
+        }
 
         if (method_exists($builder, 'is_supported_for_text_generation')
             && !$builder->is_supported_for_text_generation()
@@ -140,6 +146,20 @@ final class LlmJudge implements EvaluatorInterface
 
         $score = $totalWeight > 0.0 ? $weightedScore / $totalWeight : 0.0;
         $metadata = $adapted->getMetadata();
+        if (null !== $context->getJudgeModelTarget()) {
+            $metadata['requested_model_target'] = $context->getJudgeModelTarget()->getId();
+            $metadata['model_target_match'] = $context->getJudgeModelTarget()->matchesMetadata($metadata);
+            if (!$metadata['model_target_match']) {
+                return EvaluatorResult::fail(
+                    $this->getName(),
+                    $this->getType(),
+                    sprintf(
+                        'The judge did not use exact model target "%s".',
+                        $context->getJudgeModelTarget()->getId()
+                    )
+                );
+            }
+        }
         $metadata['rubric'] = [
             'aggregation' => 'weighted_mean',
             'minimum_score' => $this->minimumScore,
