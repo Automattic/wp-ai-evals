@@ -5,17 +5,22 @@ after the **Tests** workflow succeeds for a push to `trunk`.
 
 ## Versioning
 
-A release is triggered only when the successful commit merged into `trunk`
-changes the version in the root `package.json` relative to its first parent.
-Maintainers choose the version explicitly by updating that file in the change
-being merged. The workflow accepts stable semantic versions such as `0.2.0` and
-uses that exact value for the release tag; it never calculates or increments a
-version.
+A release is triggered whenever `trunk` declares a version in the root
+`package.json` that has not been tagged yet. Maintainers choose the version
+explicitly by updating that file. The workflow accepts stable semantic versions
+such as `0.2.0` and uses that exact value for the release tag; it never
+calculates or increments a version.
 
-Merges that leave the version unchanged skip release packaging. If the declared
-version's tag already belongs to another commit, the workflow fails rather than
-publishing over it. Re-running the workflow for the same release commit reuses
-its tag and repairs or replaces its downloadable assets.
+The release tag is the source of truth for what has already shipped, not the
+diff against the previous commit. That keeps the decision correct no matter how
+the change reaches `trunk`: a merge commit, a squash, or a push whose version
+bump is followed by further commits all release the declared version exactly
+once. Pushes that declare an already-tagged version skip release packaging.
+Re-running the workflow for the same release commit reuses its tag and repairs
+or replaces its downloadable assets.
+
+Because the tag decides, reverting `package.json` to a version that has already
+been released does not republish it. Cut a new version instead.
 
 ## Built package
 
