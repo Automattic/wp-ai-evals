@@ -20,7 +20,7 @@ The harness uses the WordPress 7.0 `wp_ai_client_prompt()` API. It intentionally
 Until the package is published, add this checkout as a Composer path repository from the plugin under test:
 
 ```bash
-composer config repositories.automattic-ai-evals path ../wp-eval-test-harness
+composer config repositories.automattic-ai-evals path ../wp-ai-evals
 composer require --dev automattic/ai-evals:@dev
 ```
 
