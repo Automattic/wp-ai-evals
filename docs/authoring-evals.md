@@ -17,7 +17,7 @@ Small plugins can register suites directly during `wp_ai_evals_init`. Larger plu
 ```php
 add_action(
     'wp_ai_evals_init',
-    static fn(Registry $registry) => $registry->loadDirectory(__DIR__ . '/suites')
+    static fn(Registry $registry) => $registry->load_directory(__DIR__ . '/suites')
 );
 ```
 
@@ -36,7 +36,7 @@ evals/suites/
 
 Case files may return one `EvaluationCase` or an iterable of cases. Files load in stable lexical order and retain normal PHP access to plugin callbacks, tasks, and custom evaluators.
 
-Datasets can expand into stable cases with ordinary iterables and `Suite::addCases()`:
+Datasets can expand into stable cases with ordinary iterables and `Suite::add_cases()`:
 
 ```php
 $rows = [
@@ -44,14 +44,14 @@ $rows = [
     'blocks' => ['input' => 'Explain a block theme.', 'expected' => 'Site Editor'],
 ];
 
-$suite->addCases(
+$suite->add_cases(
     (static function () use ($rows): iterable {
         foreach ($rows as $id => $row) {
             yield EvaluationCase::make($id)
                 ->input($row['input'])
                 ->task(static fn(string $input) => my_plugin_answer($input))
                 ->expected($row['expected'])
-                ->evaluateWith(new ContainsText())
+                ->evaluate_with(new ContainsText())
                 ->tag('dataset', 'quality');
         }
     })()
@@ -110,7 +110,7 @@ An LLM judge can use one criterion or a named, weighted rubric:
 use Automattic\AiEvals\Evaluator\LlmJudge;
 use Automattic\AiEvals\Evaluator\Rubric;
 
-->evaluateWith(
+->evaluate_with(
     new LlmJudge(
         Rubric::make()
             ->item('factuality', 'Facts match the reference answer.', 2.0, 0.8)
@@ -134,12 +134,12 @@ use Automattic\AiEvals\EvaluationContext;
 
 EvaluationCase::make('agent-answer')
     ->input('Explain object caching.')
-    ->modelTask(
+    ->model_task(
         static function (
             string $input,
             EvaluationContext $context
         ): TaskResult {
-            return my_plugin_run_agent($input, $context->getModelTarget());
+            return my_plugin_run_agent($input, $context->get_model_target());
         },
         'agent'
     );

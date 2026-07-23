@@ -4,38 +4,34 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals;
 
-final class Kernel
-{
-    private static ?self $instance = null;
-    private Registry $registry;
-    private bool $initialized = false;
+final class Kernel {
 
-    private function __construct()
-    {
-        $this->registry = new Registry();
-    }
+	private static ?self $instance = null;
+	private Registry $registry;
+	private bool $initialized = false;
 
-    public static function instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
+	private function __construct() {
+		$this->registry = new Registry();
+	}
 
-        return self::$instance;
-    }
+	public static function instance(): self {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
 
-    public function initialize(): void
-    {
-        if ($this->initialized) {
-            return;
-        }
+		return self::$instance;
+	}
 
-        $this->initialized = true;
-        do_action('wp_ai_evals_init', $this->registry);
-    }
+	public function initialize(): void {
+		if ( $this->initialized ) {
+			return;
+		}
 
-    public function getRegistry(): Registry
-    {
-        return $this->registry;
-    }
+		$this->initialized = true;
+		do_action( 'wp_ai_evals_init', $this->registry );
+	}
+
+	public function get_registry(): Registry {
+		return $this->registry;
+	}
 }

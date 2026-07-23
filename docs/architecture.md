@@ -43,9 +43,9 @@ The Connectors API supplies provider connection and credential metadata, not a m
 
 `ModelTarget` resolves an exact provider/model instance through that same registry and applies it with the WordPress prompt builder's `using_model()` method. There is no fallback in this path. `PromptTask` implements `ModelTargetAwareTaskInterface` and applies the target after case-level builder configuration, ensuring that the run override wins.
 
-Custom agents opt in with `EvaluationCase::modelTask()`. Their callback reads `EvaluationContext::getModelTarget()` and passes it through every prompt step. The runner checks the returned task metadata against the requested target and turns an ignored target or fallback into a case error.
+Custom agents opt in with `EvaluationCase::model_task()`. Their callback reads `EvaluationContext::get_model_target()` and passes it through every prompt step. The runner checks the returned task metadata against the requested target and turns an ignored target or fallback into a case error.
 
-`EvaluationContext::getJudgeModelTarget()` is separate. `LlmJudge` applies it only to grading prompts, records the requested and resolved judge model, and fails the evaluator if they differ. Run diagnostics split task tokens and reported costs from evaluator usage so candidate comparisons are not distorted by judge usage. The harness never calculates cost from model pricing.
+`EvaluationContext::get_judge_model_target()` is separate. `LlmJudge` applies it only to grading prompts, records the requested and resolved judge model, and fails the evaluator if they differ. Run diagnostics split task tokens and reported costs from evaluator usage so candidate comparisons are not distorted by judge usage. The harness never calculates cost from model pricing.
 
 Judge selection has a cross-provider default policy: Anthropic Claude Sonnet 4.6, Google Gemini 3.1 Pro Preview, then OpenAI GPT-5.4. `JudgeModelPreferences` exposes the ordered model IDs to evaluators for normal AI Client fallback and selects the first available exact `provider:model` target for the Admin app. Projects can replace that order through `wp_ai_evals_judge_model_target_preferences`.
 
@@ -54,7 +54,7 @@ Judge selection has a cross-provider default policy: Anthropic Claude Sonnet 4.6
 ## Extension points
 
 - Implement `TaskInterface` for a new system-under-test adapter.
-- Implement the marker `ModelTargetAwareTaskInterface`, or use `EvaluationCase::modelTask()`, when a task honors exact run targets.
+- Implement the marker `ModelTargetAwareTaskInterface`, or use `EvaluationCase::model_task()`, when a task honors exact run targets.
 - Implement `EvaluatorInterface` for a new scoring strategy.
 - Use `CallbackEvaluator` for small plugin-local rules.
 - Listen to `wp_ai_evals_before_run`, `wp_ai_evals_after_run`, `wp_ai_evals_before_case`, and `wp_ai_evals_after_case` for instrumentation and fixtures.

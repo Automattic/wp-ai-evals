@@ -8,12 +8,12 @@ use Automattic\AiEvals\EvaluationContext;
 use Automattic\AiEvals\EvaluatorResult;
 use Automattic\AiEvals\TaskResult;
 
-interface EvaluatorInterface
-{
-    /** @param mixed $expected */
-    public function evaluate(TaskResult $result, $expected, EvaluationContext $context): EvaluatorResult;
+interface EvaluatorInterface {
 
-    public function getName(): string;
+	/** @param mixed $expected */
+	public function evaluate( TaskResult $result, $expected, EvaluationContext $context ): EvaluatorResult;
 
-    public function getType(): string;
+	public function get_name(): string;
+
+	public function get_type(): string;
 }

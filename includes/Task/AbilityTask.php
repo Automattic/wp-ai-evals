@@ -8,37 +8,36 @@ use Automattic\AiEvals\EvaluationContext;
 use Automattic\AiEvals\Exception\RuntimeException;
 use Automattic\AiEvals\TaskResult;
 
-final class AbilityTask implements TaskInterface
-{
-    private string $abilityName;
+final class AbilityTask implements TaskInterface {
 
-    public function __construct(string $abilityName)
-    {
-        $this->abilityName = $abilityName;
-    }
+	private string $ability_name;
 
-    /** {@inheritDoc} */
-    public function run($input, EvaluationContext $context): TaskResult
-    {
-        if (!function_exists('wp_get_ability')) {
-            throw new RuntimeException('The WordPress Abilities API is unavailable.');
-        }
+	public function __construct( string $ability_name ) {
+		$this->ability_name = $ability_name;
+	}
 
-        $ability = wp_get_ability($this->abilityName);
-        if (null === $ability) {
-            throw new RuntimeException(sprintf('The WordPress ability "%s" is not registered.', $this->abilityName));
-        }
+	/** {@inheritDoc} */
+	public function run( $input, EvaluationContext $context ): TaskResult {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			throw new RuntimeException( 'The WordPress Abilities API is unavailable.' );
+		}
 
-        $result = $ability->execute($input);
-        if (function_exists('is_wp_error') && is_wp_error($result)) {
-            throw new RuntimeException($result->get_error_message());
-        }
+		$ability = wp_get_ability( $this->ability_name );
+		if ( null === $ability ) {
+			throw new RuntimeException(
+				sprintf( 'The WordPress ability "%s" is not registered.', esc_html( $this->ability_name ) )
+			);
+		}
 
-        return TaskResult::fromOutput($result, ['ability' => $this->abilityName]);
-    }
+		$result = $ability->execute( $input );
+		if ( function_exists( 'is_wp_error' ) && is_wp_error( $result ) ) {
+			throw new RuntimeException( esc_html( $result->get_error_message() ) );
+		}
 
-    public function getType(): string
-    {
-        return 'ability';
-    }
+		return TaskResult::fromOutput( $result, array( 'ability' => $this->ability_name ) );
+	}
+
+	public function get_type(): string {
+		return 'ability';
+	}
 }

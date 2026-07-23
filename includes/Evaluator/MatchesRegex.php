@@ -9,41 +9,39 @@ use Automattic\AiEvals\EvaluatorResult;
 use Automattic\AiEvals\Exception\InvalidArgumentException;
 use Automattic\AiEvals\TaskResult;
 
-final class MatchesRegex implements EvaluatorInterface
-{
-    private string $pattern;
+final class MatchesRegex implements EvaluatorInterface {
 
-    public function __construct(string $pattern)
-    {
-        if (false === @preg_match($pattern, '')) {
-            throw new InvalidArgumentException(sprintf('Invalid regular expression "%s".', $pattern));
-        }
+	private string $pattern;
 
-        $this->pattern = $pattern;
-    }
+	public function __construct( string $pattern ) {
+		// phpcs:ignore Generic.PHP.NoSilencedErrors.Forbidden,WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid user-authored patterns are converted to exceptions below.
+		$is_valid = false !== @preg_match( $pattern, '' );
+		if ( ! $is_valid ) {
+			throw new InvalidArgumentException( sprintf( 'Invalid regular expression "%s".', esc_html( $pattern ) ) );
+		}
 
-    /** {@inheritDoc} */
-    public function evaluate(TaskResult $result, $expected, EvaluationContext $context): EvaluatorResult
-    {
-        $actual = $result->getOutput();
-        if (!is_string($actual)) {
-            return EvaluatorResult::fail($this->getName(), $this->getType(), 'Regex evaluation requires string output.');
-        }
+		$this->pattern = $pattern;
+	}
 
-        $matches = 1 === preg_match($this->pattern, $actual);
+	/** {@inheritDoc} */
+	public function evaluate( TaskResult $result, $expected, EvaluationContext $context ): EvaluatorResult {
+		$actual = $result->getOutput();
+		if ( ! is_string( $actual ) ) {
+			return EvaluatorResult::fail( $this->get_name(), $this->get_type(), 'Regex evaluation requires string output.' );
+		}
 
-        return $matches
-            ? EvaluatorResult::pass($this->getName(), $this->getType(), 'Output matched the regular expression.')
-            : EvaluatorResult::fail($this->getName(), $this->getType(), 'Output did not match the regular expression.');
-    }
+		$matches = 1 === preg_match( $this->pattern, $actual );
 
-    public function getName(): string
-    {
-        return 'Regular expression';
-    }
+		return $matches
+			? EvaluatorResult::pass( $this->get_name(), $this->get_type(), 'Output matched the regular expression.' )
+			: EvaluatorResult::fail( $this->get_name(), $this->get_type(), 'Output did not match the regular expression.' );
+	}
 
-    public function getType(): string
-    {
-        return 'deterministic';
-    }
+	public function get_name(): string {
+		return 'Regular expression';
+	}
+
+	public function get_type(): string {
+		return 'deterministic';
+	}
 }

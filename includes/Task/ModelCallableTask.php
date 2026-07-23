@@ -9,31 +9,28 @@ use Automattic\AiEvals\Exception\RuntimeException;
 use Automattic\AiEvals\TaskResult;
 use Closure;
 
-final class ModelCallableTask implements ModelTargetAwareTaskInterface
-{
-    private Closure $callback;
-    private string $type;
+final class ModelCallableTask implements ModelTargetAwareTaskInterface {
 
-    public function __construct(callable $callback, string $type = 'callable:model')
-    {
-        $this->callback = Closure::fromCallable($callback);
-        $this->type = $type;
-    }
+	private Closure $callback;
+	private string $type;
 
-    /** {@inheritDoc} */
-    public function run($input, EvaluationContext $context): TaskResult
-    {
-        $result = ($this->callback)($input, $context);
+	public function __construct( callable $callback, string $type = 'callable:model' ) {
+		$this->callback = Closure::fromCallable( $callback );
+		$this->type     = $type;
+	}
 
-        if (function_exists('is_wp_error') && is_wp_error($result)) {
-            throw new RuntimeException($result->get_error_message());
-        }
+	/** {@inheritDoc} */
+	public function run( $input, EvaluationContext $context ): TaskResult {
+		$result = ( $this->callback )( $input, $context );
 
-        return $result instanceof TaskResult ? $result : TaskResult::fromOutput($result);
-    }
+		if ( function_exists( 'is_wp_error' ) && is_wp_error( $result ) ) {
+			throw new RuntimeException( esc_html( $result->get_error_message() ) );
+		}
 
-    public function getType(): string
-    {
-        return $this->type;
-    }
+		return $result instanceof TaskResult ? $result : TaskResult::fromOutput( $result );
+	}
+
+	public function get_type(): string {
+		return $this->type;
+	}
 }

@@ -7,44 +7,40 @@ namespace HelloDollyAI\Tests;
 use HelloDollyAI\Block;
 use PHPUnit\Framework\TestCase;
 
-final class BlockTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        hello_dolly_ai_test_reset_state();
-    }
+final class BlockTest extends TestCase {
 
-    public function testRenderEscapesTheGreetingAndRequiresSignIn(): void
-    {
-        $GLOBALS['hello_dolly_ai_test_logged_in'] = false;
+	protected function setUp(): void {
+		hello_dolly_ai_test_reset_state();
+	}
 
-        $html = Block::render(['greeting' => '<script>alert(1)</script>']);
+	public function testRenderEscapesTheGreetingAndRequiresSignIn(): void {
+		$GLOBALS['hello_dolly_ai_test_logged_in'] = false;
 
-        self::assertStringNotContainsString('<script>', $html);
-        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
-        self::assertStringContainsString('Sign in to use this development chat demo.', $html);
-        self::assertStringContainsString('disabled="disabled"', $html);
-    }
+		$html = Block::render( array( 'greeting' => '<script>alert(1)</script>' ) );
 
-    public function testRenderShowsConnectorSetupWhenTextGenerationIsUnavailable(): void
-    {
-        $GLOBALS['hello_dolly_ai_test_ai_supported'] = false;
+		self::assertStringNotContainsString( '<script>', $html );
+		self::assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $html );
+		self::assertStringContainsString( 'Sign in to use this development chat demo.', $html );
+		self::assertStringContainsString( 'disabled="disabled"', $html );
+	}
 
-        $html = Block::render([]);
+	public function testRenderShowsConnectorSetupWhenTextGenerationIsUnavailable(): void {
+		$GLOBALS['hello_dolly_ai_test_ai_supported'] = false;
 
-        self::assertStringContainsString('Configure an AI provider', $html);
-        self::assertStringContainsString('options-connectors.php', $html);
-        self::assertStringContainsString('data-ready="false"', $html);
-    }
+		$html = Block::render( array() );
 
-    public function testRenderExposesAnEnabledNonceProtectedChatFormWhenReady(): void
-    {
-        $html = Block::render([]);
+		self::assertStringContainsString( 'Configure an AI provider', $html );
+		self::assertStringContainsString( 'options-connectors.php', $html );
+		self::assertStringContainsString( 'data-ready="false"', $html );
+	}
 
-        self::assertStringContainsString('data-endpoint="https://example.test/wp-json/hello-dolly/v1/chat"', $html);
-        self::assertStringContainsString('data-nonce="test-nonce"', $html);
-        self::assertStringContainsString('data-ready="true"', $html);
-        self::assertStringContainsString('class="hello-dolly-ai-chat__form"', $html);
-        self::assertStringNotContainsString('disabled="disabled"', $html);
-    }
+	public function testRenderExposesAnEnabledNonceProtectedChatFormWhenReady(): void {
+		$html = Block::render( array() );
+
+		self::assertStringContainsString( 'data-endpoint="https://example.test/wp-json/hello-dolly/v1/chat"', $html );
+		self::assertStringContainsString( 'data-nonce="test-nonce"', $html );
+		self::assertStringContainsString( 'data-ready="true"', $html );
+		self::assertStringContainsString( 'class="hello-dolly-ai-chat__form"', $html );
+		self::assertStringNotContainsString( 'disabled="disabled"', $html );
+	}
 }

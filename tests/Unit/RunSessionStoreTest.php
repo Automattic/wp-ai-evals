@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
 use Automattic\AiEvals\EvaluationCase;
 use Automattic\AiEvals\Evaluator\ExactMatch;
 use Automattic\AiEvals\Registry;
@@ -14,79 +13,76 @@ use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Storage\HistoryStore;
 use Automattic\AiEvals\Storage\RunSessionStore;
 use Automattic\AiEvals\Suite;
+use PHPUnit\Framework\TestCase;
 
-final class RunSessionStoreTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        wp_ai_evals_test_reset_state();
-    }
+final class RunSessionStoreTest extends TestCase {
 
-    public function testAdvancesOneCasePerCallThenCompletesAndPersistsAReport(): void
-    {
-        $registry = (new Registry())->register(
-            Suite::make('suite')
-                ->addCase(
-                    EvaluationCase::make('first')
-                        ->task(static fn(): string => 'ok')
-                        ->expected('ok')
-                        ->evaluateWith(new ExactMatch())
-                )
-                ->addCase(
-                    EvaluationCase::make('second')
-                        ->task(static fn(): string => 'ok')
-                        ->expected('ok')
-                        ->evaluateWith(new ExactMatch())
-                )
-        );
+	protected function setUp(): void {
+		wp_ai_evals_test_reset_state();
+	}
 
-        $store = new RunSessionStore();
-        $session = $store->start($registry, Selection::all(), new Runner());
-        $runId = (string) $session['id'];
+	public function testAdvancesOneCasePerCallThenCompletesAndPersistsAReport(): void {
+		$registry = ( new Registry() )->register(
+			Suite::make( 'suite' )
+				->add_case(
+					EvaluationCase::make( 'first' )
+						->task( static fn(): string => 'ok' )
+						->expected( 'ok' )
+						->evaluate_with( new ExactMatch() )
+				)
+				->add_case(
+					EvaluationCase::make( 'second' )
+						->task( static fn(): string => 'ok' )
+						->expected( 'ok' )
+						->evaluate_with( new ExactMatch() )
+				)
+		);
 
-        self::assertSame(2, $session['total']);
-        self::assertSame(0, $session['completed']);
-        self::assertSame(2, $session['remaining']);
-        self::assertFalse($session['complete']);
+		$store   = new RunSessionStore();
+		$session = $store->start( $registry, Selection::all(), new Runner() );
+		$run_id   = (string) $session['id'];
 
-        $first = $store->advance($runId, $registry, new Runner());
-        self::assertNull($first['report']);
-        self::assertSame(1, $first['session']['completed']);
-        self::assertSame(1, $first['session']['remaining']);
-        self::assertFalse($first['session']['complete']);
+		self::assertSame( 2, $session['total'] );
+		self::assertSame( 0, $session['completed'] );
+		self::assertSame( 2, $session['remaining'] );
+		self::assertFalse( $session['complete'] );
 
-        $second = $store->advance($runId, $registry, new Runner());
-        self::assertInstanceOf(RunReport::class, $second['report']);
-        self::assertSame(2, $second['report']->getTotal());
-        self::assertSame(2, $second['report']->getPassed());
-        self::assertTrue($second['session']['complete']);
-        self::assertSame(0, $second['session']['remaining']);
-    }
+		$first = $store->advance( $run_id, $registry, new Runner() );
+		self::assertNull( $first['report'] );
+		self::assertSame( 1, $first['session']['completed'] );
+		self::assertSame( 1, $first['session']['remaining'] );
+		self::assertFalse( $first['session']['complete'] );
 
-    public function testDropsTheSessionAndRecordsHistoryOnCompletion(): void
-    {
-        $registry = (new Registry())->register(
-            Suite::make('suite')->addCase(
-                EvaluationCase::make('only')
-                    ->task(static fn(): string => 'ok')
-                    ->expected('ok')
-                    ->evaluateWith(new ExactMatch())
-            )
-        );
+		$second = $store->advance( $run_id, $registry, new Runner() );
+		self::assertInstanceOf( RunReport::class, $second['report'] );
+		self::assertSame( 2, $second['report']->getTotal() );
+		self::assertSame( 2, $second['report']->getPassed() );
+		self::assertTrue( $second['session']['complete'] );
+		self::assertSame( 0, $second['session']['remaining'] );
+	}
 
-        $store = new RunSessionStore();
-        $runId = (string) $store->start($registry, Selection::all(), new Runner())['id'];
-        $store->advance($runId, $registry, new Runner());
+	public function testDropsTheSessionAndRecordsHistoryOnCompletion(): void {
+		$registry = ( new Registry() )->register(
+			Suite::make( 'suite' )->add_case(
+				EvaluationCase::make( 'only' )
+					->task( static fn(): string => 'ok' )
+					->expected( 'ok' )
+					->evaluate_with( new ExactMatch() )
+			)
+		);
 
-        self::assertNull($store->status($runId), 'The session transient is cleared once the run completes.');
+		$store = new RunSessionStore();
+		$run_id = (string) $store->start( $registry, Selection::all(), new Runner() )['id'];
+		$store->advance( $run_id, $registry, new Runner() );
 
-        $history = (new HistoryStore())->all();
-        self::assertCount(1, $history);
-        self::assertSame($runId, $history[0]['id']);
-    }
+		self::assertNull( $store->status( $run_id ), 'The session transient is cleared once the run completes.' );
 
-    public function testStatusReturnsNullForAnUnknownRun(): void
-    {
-        self::assertNull((new RunSessionStore())->status('does-not-exist'));
-    }
+		$history = ( new HistoryStore() )->all();
+		self::assertCount( 1, $history );
+		self::assertSame( $run_id, $history[0]['id'] );
+	}
+
+	public function testStatusReturnsNullForAnUnknownRun(): void {
+		self::assertNull( ( new RunSessionStore() )->status( 'does-not-exist' ) );
+	}
 }

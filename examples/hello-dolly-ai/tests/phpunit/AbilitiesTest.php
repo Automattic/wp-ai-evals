@@ -7,58 +7,54 @@ namespace HelloDollyAI\Tests;
 use HelloDollyAI\Abilities;
 use PHPUnit\Framework\TestCase;
 
-final class AbilitiesTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        hello_dolly_ai_test_reset_state();
-    }
+final class AbilitiesTest extends TestCase {
 
-    public function testRegistersTheCategoryAndAllReadOnlyAbilities(): void
-    {
-        Abilities::registerCategory();
-        Abilities::register();
+	protected function setUp(): void {
+		hello_dolly_ai_test_reset_state();
+	}
 
-        self::assertArrayHasKey('hello-dolly-knowledge', $GLOBALS['hello_dolly_ai_test_categories']);
-        self::assertSame(Abilities::names(), array_keys($GLOBALS['hello_dolly_ai_test_abilities']));
+	public function testRegistersTheCategoryAndAllReadOnlyAbilities(): void {
+		Abilities::register_category();
+		Abilities::register();
 
-        foreach (Abilities::names() as $name) {
-            $ability = $GLOBALS['hello_dolly_ai_test_abilities'][$name];
-            self::assertSame('hello-dolly-knowledge', $ability['category']);
-            self::assertTrue($ability['meta']['annotations']['readonly']);
-            self::assertFalse($ability['meta']['annotations']['destructive']);
-            self::assertFalse($ability['meta']['show_in_rest']);
-        }
-    }
+		self::assertArrayHasKey( 'hello-dolly-knowledge', $GLOBALS['hello_dolly_ai_test_categories'] );
+		self::assertSame( Abilities::names(), array_keys( $GLOBALS['hello_dolly_ai_test_abilities'] ) );
 
-    public function testAbilityCallbacksReturnGroundedStructuredData(): void
-    {
-        Abilities::register();
+		foreach ( Abilities::names() as $name ) {
+			$ability = $GLOBALS['hello_dolly_ai_test_abilities'][ $name ];
+			self::assertSame( 'hello-dolly-knowledge', $ability['category'] );
+			self::assertTrue( $ability['meta']['annotations']['readonly'] );
+			self::assertFalse( $ability['meta']['annotations']['destructive'] );
+			self::assertFalse( $ability['meta']['show_in_rest'] );
+		}
+	}
 
-        $fact = $GLOBALS['hello_dolly_ai_test_abilities'][Abilities::FACT]['execute_callback'](
-            ['topic' => 'birth']
-        );
-        $timeline = $GLOBALS['hello_dolly_ai_test_abilities'][Abilities::TIMELINE]['execute_callback'](
-            ['decade' => '1970s']
-        );
-        $song = $GLOBALS['hello_dolly_ai_test_abilities'][Abilities::SONG]['execute_callback'](
-            ['title' => 'jolene']
-        );
+	public function testAbilityCallbacksReturnGroundedStructuredData(): void {
+		Abilities::register();
 
-        self::assertStringContainsString('Locust Ridge', $fact['answer']);
-        self::assertNotEmpty($timeline['events']);
-        self::assertSame('Jolene', $song['title']);
-        self::assertStringStartsWith('https://', $fact['source']);
-        self::assertStringStartsWith('https://', $timeline['source']);
-        self::assertStringStartsWith('https://', $song['source']);
-    }
+		$fact     = $GLOBALS['hello_dolly_ai_test_abilities'][ Abilities::FACT ]['execute_callback'](
+			array( 'topic' => 'birth' )
+		);
+		$timeline = $GLOBALS['hello_dolly_ai_test_abilities'][ Abilities::TIMELINE ]['execute_callback'](
+			array( 'decade' => '1970s' )
+		);
+		$song     = $GLOBALS['hello_dolly_ai_test_abilities'][ Abilities::SONG ]['execute_callback'](
+			array( 'title' => 'jolene' )
+		);
 
-    public function testAbilityPermissionsRequireReadCapability(): void
-    {
-        self::assertTrue(Abilities::canRead());
+		self::assertStringContainsString( 'Locust Ridge', $fact['answer'] );
+		self::assertNotEmpty( $timeline['events'] );
+		self::assertSame( 'Jolene', $song['title'] );
+		self::assertStringStartsWith( 'https://', $fact['source'] );
+		self::assertStringStartsWith( 'https://', $timeline['source'] );
+		self::assertStringStartsWith( 'https://', $song['source'] );
+	}
 
-        $GLOBALS['hello_dolly_ai_test_user_can_read'] = false;
+	public function testAbilityPermissionsRequireReadCapability(): void {
+		self::assertTrue( Abilities::can_read() );
 
-        self::assertFalse(Abilities::canRead());
-    }
+		$GLOBALS['hello_dolly_ai_test_user_can_read'] = false;
+
+		self::assertFalse( Abilities::can_read() );
+	}
 }

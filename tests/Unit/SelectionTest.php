@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
 use Automattic\AiEvals\EvaluationCase;
 use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Suite;
+use PHPUnit\Framework\TestCase;
 
-final class SelectionTest extends TestCase
-{
-    public function testFiltersBySuiteQualifiedCaseAndAnyTag(): void
-    {
-        $suite = Suite::make('content');
-        $case = EvaluationCase::make('summary')->tag('smoke', 'quality');
+final class SelectionTest extends TestCase {
 
-        self::assertTrue((new Selection(['content'], ['content/summary'], ['smoke']))->matches($suite, $case));
-        self::assertTrue((new Selection([], [], ['missing', 'quality']))->matches($suite, $case));
-        self::assertFalse((new Selection(['other']))->matches($suite, $case));
-        self::assertFalse((new Selection([], ['other']))->matches($suite, $case));
-        self::assertFalse((new Selection([], [], ['slow']))->matches($suite, $case));
-    }
+	public function testFiltersBySuiteQualifiedCaseAndAnyTag(): void {
+		$suite = Suite::make( 'content' );
+		$evaluation_case  = EvaluationCase::make( 'summary' )->tag( 'smoke', 'quality' );
+
+		self::assertTrue( ( new Selection( array( 'content' ), array( 'content/summary' ), array( 'smoke' ) ) )->matches( $suite, $evaluation_case ) );
+		self::assertTrue( ( new Selection( array(), array(), array( 'missing', 'quality' ) ) )->matches( $suite, $evaluation_case ) );
+		self::assertFalse( ( new Selection( array( 'other' ) ) )->matches( $suite, $evaluation_case ) );
+		self::assertFalse( ( new Selection( array(), array( 'other' ) ) )->matches( $suite, $evaluation_case ) );
+		self::assertFalse( ( new Selection( array(), array(), array( 'slow' ) ) )->matches( $suite, $evaluation_case ) );
+	}
 }

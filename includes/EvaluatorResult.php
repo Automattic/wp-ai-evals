@@ -6,93 +6,83 @@ namespace Automattic\AiEvals;
 
 use JsonSerializable;
 
-final class EvaluatorResult implements JsonSerializable
-{
-    private string $name;
-    private string $type;
-    private bool $passed;
-    private float $score;
-    private string $reason;
+final class EvaluatorResult implements JsonSerializable {
 
-    /** @var array<string, mixed> */
-    private array $metadata;
+	private string $name;
+	private string $type;
+	private bool $passed;
+	private float $score;
+	private string $reason;
 
-    /** @param array<string, mixed> $metadata */
-    public function __construct(
-        string $name,
-        string $type,
-        bool $passed,
-        float $score,
-        string $reason = '',
-        array $metadata = []
-    ) {
-        $this->name = $name;
-        $this->type = $type;
-        $this->passed = $passed;
-        $this->score = max(0.0, min(1.0, $score));
-        $this->reason = $reason;
-        $this->metadata = $metadata;
-    }
+	/** @var array<string, mixed> */
+	private array $metadata;
 
-    public static function pass(string $name, string $type, string $reason = '', float $score = 1.0): self
-    {
-        return new self($name, $type, true, $score, $reason);
-    }
+	/** @param array<string, mixed> $metadata */
+	public function __construct(
+		string $name,
+		string $type,
+		bool $passed,
+		float $score,
+		string $reason = '',
+		array $metadata = array()
+	) {
+		$this->name     = $name;
+		$this->type     = $type;
+		$this->passed   = $passed;
+		$this->score    = max( 0.0, min( 1.0, $score ) );
+		$this->reason   = $reason;
+		$this->metadata = $metadata;
+	}
 
-    public static function fail(string $name, string $type, string $reason, float $score = 0.0): self
-    {
-        return new self($name, $type, false, $score, $reason);
-    }
+	public static function pass( string $name, string $type, string $reason = '', float $score = 1.0 ): self {
+		return new self( $name, $type, true, $score, $reason );
+	}
 
-    public function getName(): string
-    {
-        return $this->name;
-    }
+	public static function fail( string $name, string $type, string $reason, float $score = 0.0 ): self {
+		return new self( $name, $type, false, $score, $reason );
+	}
 
-    public function getType(): string
-    {
-        return $this->type;
-    }
+	public function get_name(): string {
+		return $this->name;
+	}
 
-    public function hasPassed(): bool
-    {
-        return $this->passed;
-    }
+	public function get_type(): string {
+		return $this->type;
+	}
 
-    public function getScore(): float
-    {
-        return $this->score;
-    }
+	public function hasPassed(): bool {
+		return $this->passed;
+	}
 
-    public function getReason(): string
-    {
-        return $this->reason;
-    }
+	public function getScore(): float {
+		return $this->score;
+	}
 
-    /** @return array<string, mixed> */
-    public function getMetadata(): array
-    {
-        return $this->metadata;
-    }
+	public function getReason(): string {
+		return $this->reason;
+	}
 
-    public function withMetric(string $name, float $value): self
-    {
-        $clone = clone $this;
-        $clone->metadata[$name] = $value;
+	/** @return array<string, mixed> */
+	public function get_metadata(): array {
+		return $this->metadata;
+	}
 
-        return $clone;
-    }
+	public function withMetric( string $name, float $value ): self {
+		$clone                    = clone $this;
+		$clone->metadata[ $name ] = $value;
 
-    /** @return array<string, mixed> */
-    public function jsonSerialize(): array
-    {
-        return [
-            'name' => $this->name,
-            'type' => $this->type,
-            'passed' => $this->passed,
-            'score' => $this->score,
-            'reason' => $this->reason,
-            'metadata' => TaskResult::normalize($this->metadata),
-        ];
-    }
+		return $clone;
+	}
+
+	/** @return array<string, mixed> */
+	public function jsonSerialize(): array {
+		return array(
+			'name'     => $this->name,
+			'type'     => $this->type,
+			'passed'   => $this->passed,
+			'score'    => $this->score,
+			'reason'   => $this->reason,
+			'metadata' => TaskResult::normalize( $this->metadata ),
+		);
+	}
 }

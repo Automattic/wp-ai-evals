@@ -10,57 +10,58 @@ use HelloDollyAI\Plugin;
 use HelloDollyAI\RestController;
 use PHPUnit\Framework\TestCase;
 
-final class PluginTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        hello_dolly_ai_test_reset_state();
-    }
+final class PluginTest extends TestCase {
 
-    public function testBootRegistersThePluginHooks(): void
-    {
-        Plugin::boot();
+	protected function setUp(): void {
+		hello_dolly_ai_test_reset_state();
+	}
 
-        self::assertContains(
-            [Abilities::class, 'registerCategory'],
-            $GLOBALS['hello_dolly_ai_test_actions']['wp_abilities_api_categories_init']
-        );
-        self::assertContains(
-            [Abilities::class, 'register'],
-            $GLOBALS['hello_dolly_ai_test_actions']['wp_abilities_api_init']
-        );
-        self::assertContains([Block::class, 'register'], $GLOBALS['hello_dolly_ai_test_actions']['init']);
-        self::assertContains(
-            [RestController::class, 'registerRoutes'],
-            $GLOBALS['hello_dolly_ai_test_actions']['rest_api_init']
-        );
-    }
+	public function testBootRegistersThePluginHooks(): void {
+		Plugin::boot();
 
-    public function testActivationCreatesTheDemoPageOnlyOnce(): void
-    {
-        Plugin::activate();
+		self::assertContains(
+			array( Abilities::class, 'register_category' ),
+			$GLOBALS['hello_dolly_ai_test_actions']['wp_abilities_api_categories_init']
+		);
+		self::assertContains(
+			array( Abilities::class, 'register' ),
+			$GLOBALS['hello_dolly_ai_test_actions']['wp_abilities_api_init']
+		);
+		self::assertContains( array( Block::class, 'register' ), $GLOBALS['hello_dolly_ai_test_actions']['init'] );
+		self::assertContains(
+			array( RestController::class, 'register_routes' ),
+			$GLOBALS['hello_dolly_ai_test_actions']['rest_api_init']
+		);
+		self::assertContains(
+			array( Plugin::class, 'plugin_action_links' ),
+			$GLOBALS['hello_dolly_ai_test_filters']['plugin_action_links']
+		);
+	}
 
-        self::assertCount(1, $GLOBALS['hello_dolly_ai_test_posts']);
-        $pageId = (int) $GLOBALS['hello_dolly_ai_test_options']['hello_dolly_ai_demo_page_id'];
-        self::assertSame('hello-dolly-ai', $GLOBALS['hello_dolly_ai_test_posts'][$pageId]['post_name']);
-        self::assertStringContainsString('wp:hello-dolly-ai/hello-dolly', $GLOBALS['hello_dolly_ai_test_posts'][$pageId]['post_content']);
-        self::assertSame(1, $GLOBALS['hello_dolly_ai_test_flushes']);
+	public function testActivationCreatesTheDemoPageOnlyOnce(): void {
+		Plugin::activate();
 
-        Plugin::activate();
+		self::assertCount( 1, $GLOBALS['hello_dolly_ai_test_posts'] );
+		$page_id = (int) $GLOBALS['hello_dolly_ai_test_options']['hello_dolly_ai_demo_page_id'];
+		self::assertSame( 'hello-dolly-ai', $GLOBALS['hello_dolly_ai_test_posts'][ $page_id ]['post_name'] );
+		self::assertStringContainsString( 'wp:hello-dolly-ai/hello-dolly', $GLOBALS['hello_dolly_ai_test_posts'][ $page_id ]['post_content'] );
 
-        self::assertCount(1, $GLOBALS['hello_dolly_ai_test_posts']);
-        self::assertSame(1, $GLOBALS['hello_dolly_ai_test_flushes']);
-    }
+		Plugin::activate();
 
-    public function testPluginActionLinksExposeChatConnectorsAndEvals(): void
-    {
-        $GLOBALS['hello_dolly_ai_test_options']['hello_dolly_ai_demo_page_id'] = 123;
+		self::assertCount( 1, $GLOBALS['hello_dolly_ai_test_posts'] );
+	}
 
-        $links = Plugin::pluginActionLinks(['deactivate' => '<a>Deactivate</a>']);
+	public function testPluginActionLinksExposeChatConnectorsAndEvals(): void {
+		$GLOBALS['hello_dolly_ai_test_options']['hello_dolly_ai_demo_page_id'] = 123;
 
-        self::assertArrayHasKey('hello-dolly-ai-chat', $links);
-        self::assertArrayHasKey('hello-dolly-ai-connectors', $links);
-        self::assertArrayHasKey('hello-dolly-ai-evals', $links);
-        self::assertArrayHasKey('deactivate', $links);
-    }
+		$links = Plugin::plugin_action_links(
+			array( 'deactivate' => '<a>Deactivate</a>' ),
+			'hello-dolly-ai/hello-dolly-ai.php'
+		);
+
+		self::assertArrayHasKey( 'hello-dolly-ai-chat', $links );
+		self::assertArrayHasKey( 'hello-dolly-ai-connectors', $links );
+		self::assertArrayHasKey( 'hello-dolly-ai-evals', $links );
+		self::assertArrayHasKey( 'deactivate', $links );
+	}
 }

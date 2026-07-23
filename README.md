@@ -69,7 +69,7 @@ add_action(
         $registry->register(
             Suite::make('my-plugin', 'My Plugin')
                 ->describe('Quality checks for the content assistant.')
-                ->addCase(
+                ->add_case(
                     EvaluationCase::make('summarizes-post', 'Summarizes a post')
                         ->input([
                             'title' => 'Caching in WordPress',
@@ -82,7 +82,7 @@ add_action(
                             )
                         )
                         ->expected('cache')
-                        ->evaluateWith(new ContainsText())
+                        ->evaluate_with(new ContainsText())
                         ->tag('smoke', 'quality')
                 )
         );
@@ -153,5 +153,9 @@ corepack enable pnpm
 pnpm install
 pnpm check
 ```
+
+The PHP check includes syntax validation, WordPress Coding Standards, and the
+unit suite. Run `composer phpcs` for coding standards alone or `composer phpcbf`
+to apply safe automatic fixes.
 
 Licensed under GPL-2.0-or-later.

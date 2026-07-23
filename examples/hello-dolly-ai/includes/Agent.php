@@ -13,19 +13,19 @@ use WordPress\AiClient\Messages\DTO\ModelMessage;
 use WordPress\AiClient\Messages\DTO\UserMessage;
 use WordPress\AiClient\Tools\DTO\FunctionResponse;
 
-final class Agent
-{
-    private const MAX_TOOL_STEPS = 3;
-    private const MAX_HISTORY_MESSAGES = 10;
+final class Agent {
 
-    /**
-     * Anthropic 1.0.3 cannot round-trip the signed thinking blocks emitted by
-     * Claude Sonnet 5 during tool use. A model preference remains portable —
-     * WordPress falls back to any compatible model or provider when absent.
-     */
-    private const TOOL_MODEL_PREFERENCES = ['claude-sonnet-4-6'];
+	private const MAX_TOOL_STEPS       = 3;
+	private const MAX_HISTORY_MESSAGES = 10;
 
-    private const SYSTEM_INSTRUCTION = <<<'PROMPT'
+	/**
+	 * Anthropic 1.0.3 cannot round-trip the signed thinking blocks emitted by
+	 * Claude Sonnet 5 during tool use. A model preference remains portable —
+	 * WordPress falls back to any compatible model or provider when absent.
+	 */
+	private const TOOL_MODEL_PREFERENCES = array( 'claude-sonnet-4-6' );
+
+	private const SYSTEM_INSTRUCTION = <<<'PROMPT'
 You are Hello Dolly, a warm, precise learning guide focused only on Dolly Parton's life, career, songs, business work, and philanthropy.
 
 Rules:
@@ -39,243 +39,241 @@ Rules:
 - When ability output includes a source, use it to ground the answer. The interface will display source links separately, so do not print raw URLs.
 PROMPT;
 
-    /**
-     * @param list<array{role?: string, content?: string}> $history
-     * @return array<string, mixed>|\WP_Error
-     */
-    public function respond(string $message, array $history = [], ?ModelTarget $modelTarget = null)
-    {
-        if (!function_exists('wp_ai_client_prompt') || !class_exists('WP_AI_Client_Ability_Function_Resolver')) {
-            return new \WP_Error(
-                'hello_dolly_ai_unavailable',
-                __('The WordPress 7.0 AI Client is unavailable.', 'hello-dolly-ai'),
-                ['status' => 503]
-            );
-        }
+	/**
+	 * @param list<array{role?: string, content?: string}> $history
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	public function respond( string $message, array $history = array(), ?ModelTarget $model_target = null ) {
+		if ( ! function_exists( 'wp_ai_client_prompt' ) || ! class_exists( 'WP_AI_Client_Ability_Function_Resolver' ) ) {
+			return new \WP_Error(
+				'hello_dolly_ai_unavailable',
+				__( 'The WordPress 7.0 AI Client is unavailable.', 'hello-dolly-ai' ),
+				array( 'status' => 503 )
+			);
+		}
 
-        $historyMessages = $this->historyMessages($history);
-        $userMessage = new UserMessage([new MessagePart($message)]);
-        $conversation = array_merge($historyMessages, [$userMessage]);
-        $resolver = new \WP_AI_Client_Ability_Function_Resolver(...Abilities::names());
-        $tools = [];
-        $sources = [];
-        $usage = ['input' => 0, 'output' => 0, 'total' => 0, 'thinking' => 0];
-        $reportedCosts = [];
+		$history_messages = $this->history_messages( $history );
+		$user_message     = new UserMessage( array( new MessagePart( $message ) ) );
+		$conversation     = array_merge( $history_messages, array( $user_message ) );
+		$resolver         = new \WP_AI_Client_Ability_Function_Resolver( ...Abilities::names() );
+		$tools            = array();
+		$sources          = array();
+		$usage            = array(
+			'input'    => 0,
+			'output'   => 0,
+			'total'    => 0,
+			'thinking' => 0,
+		);
+		$reported_costs   = array();
 
-        try {
-            $builder = wp_ai_client_prompt($message)
-                ->using_system_instruction(self::SYSTEM_INSTRUCTION)
-                ->using_abilities(...Abilities::names());
-            $builder = $this->usingModel($builder, $modelTarget);
-        } catch (Throwable $error) {
-            return new \WP_Error(
-                'hello_dolly_ai_model_unavailable',
-                $error->getMessage(),
-                ['status' => 503]
-            );
-        }
+		try {
+			$builder = wp_ai_client_prompt( $message )
+				->using_system_instruction( self::SYSTEM_INSTRUCTION )
+				->using_abilities( ...Abilities::names() );
+			$builder = $this->using_model( $builder, $model_target );
+		} catch ( Throwable $error ) {
+			return new \WP_Error(
+				'hello_dolly_ai_model_unavailable',
+				$error->getMessage(),
+				array( 'status' => 503 )
+			);
+		}
 
-        if ([] !== $historyMessages) {
-            $builder = $builder->with_history(...$historyMessages);
-        }
+		if ( array() !== $history_messages ) {
+			$builder = $builder->with_history( ...$history_messages );
+		}
 
-        if (!$builder->is_supported_for_text_generation()) {
-            return new \WP_Error(
-                'hello_dolly_ai_no_connector',
-                __('No configured AI connector supports text generation with WordPress Ability function calls.', 'hello-dolly-ai'),
-                ['status' => 503]
-            );
-        }
+		if ( ! $builder->is_supported_for_text_generation() ) {
+			return new \WP_Error(
+				'hello_dolly_ai_no_connector',
+				__( 'No configured AI connector supports text generation with WordPress Ability function calls.', 'hello-dolly-ai' ),
+				array( 'status' => 503 )
+			);
+		}
 
-        for ($step = 0; $step <= self::MAX_TOOL_STEPS; ++$step) {
-            $result = $builder->generate_text_result();
-            if (is_wp_error($result)) {
-                return $result;
-            }
+		for ( $step = 0; $step <= self::MAX_TOOL_STEPS; ++$step ) {
+			$result = $builder->generate_text_result();
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
 
-            $this->addUsage($usage, $result);
-            $this->addReportedCost($reportedCosts, $result);
-            $assistantMessage = $result->toMessage();
+			$this->add_usage( $usage, $result );
+			$this->add_reported_cost( $reported_costs, $result );
+			$assistant_message = $result->toMessage();
 
-            if (!$resolver->has_ability_calls($assistantMessage)) {
-                try {
-                    $response = [
-                        'answer' => $result->toText(),
-                        'provider' => $result->getProviderMetadata()->getId(),
-                        'model' => $result->getModelMetadata()->getId(),
-                        'tokens' => $usage,
-                        'tools' => array_values(array_unique($tools)),
-                        'sources' => array_values($sources),
-                    ];
-                    $reportedCost = $this->reportedCost($reportedCosts);
-                    if (null !== $reportedCost) {
-                        $response['cost'] = $reportedCost;
-                    }
+			if ( ! $resolver->has_ability_calls( $assistant_message ) ) {
+				try {
+					$response      = array(
+						'answer'   => $result->toText(),
+						'provider' => $result->getProviderMetadata()->get_id(),
+						'model'    => $result->getModelMetadata()->get_id(),
+						'tokens'   => $usage,
+						'tools'    => array_values( array_unique( $tools ) ),
+						'sources'  => array_values( $sources ),
+					);
+					$reported_cost = $this->reported_cost( $reported_costs );
+					if ( null !== $reported_cost ) {
+						$response['cost'] = $reported_cost;
+					}
 
-                    return $response;
-                } catch (Throwable $error) {
-                    return new \WP_Error(
-                        'hello_dolly_ai_empty_response',
-                        __('The AI connector returned no readable answer.', 'hello-dolly-ai'),
-                        ['status' => 502]
-                    );
-                }
-            }
+					return $response;
+				} catch ( Throwable $error ) {
+					return new \WP_Error(
+						'hello_dolly_ai_empty_response',
+						__( 'The AI connector returned no readable answer.', 'hello-dolly-ai' ),
+						array( 'status' => 502 )
+					);
+				}
+			}
 
-            if (self::MAX_TOOL_STEPS === $step) {
-                break;
-            }
+			if ( self::MAX_TOOL_STEPS === $step ) {
+				break;
+			}
 
-            $this->collectToolNames($assistantMessage, $tools);
-            $functionResponses = $resolver->execute_abilities($assistantMessage);
-            $this->collectSources($functionResponses, $sources);
-            $conversation[] = $assistantMessage;
+			$this->collect_tool_names( $assistant_message, $tools );
+			$function_responses = $resolver->execute_abilities( $assistant_message );
+			$this->collect_sources( $function_responses, $sources );
+			$conversation[] = $assistant_message;
 
-            try {
-                $builder = wp_ai_client_prompt()
-                    ->with_history(...$conversation)
-                    ->with_message_parts(...$functionResponses->getParts())
-                    ->using_system_instruction(self::SYSTEM_INSTRUCTION)
-                    ->using_abilities(...Abilities::names());
-                $builder = $this->usingModel($builder, $modelTarget);
-            } catch (Throwable $error) {
-                return new \WP_Error(
-                    'hello_dolly_ai_model_unavailable',
-                    $error->getMessage(),
-                    ['status' => 503]
-                );
-            }
+			try {
+				$builder = wp_ai_client_prompt()
+					->with_history( ...$conversation )
+					->with_message_parts( ...$function_responses->getParts() )
+					->using_system_instruction( self::SYSTEM_INSTRUCTION )
+					->using_abilities( ...Abilities::names() );
+				$builder = $this->using_model( $builder, $model_target );
+			} catch ( Throwable $error ) {
+				return new \WP_Error(
+					'hello_dolly_ai_model_unavailable',
+					$error->getMessage(),
+					array( 'status' => 503 )
+				);
+			}
 
-            $conversation[] = $functionResponses;
-        }
+			$conversation[] = $function_responses;
+		}
 
-        return new \WP_Error(
-            'hello_dolly_ai_step_limit',
-            __('The chat agent reached its tool-call limit before producing an answer.', 'hello-dolly-ai'),
-            ['status' => 502]
-        );
-    }
+		return new \WP_Error(
+			'hello_dolly_ai_step_limit',
+			__( 'The chat agent reached its tool-call limit before producing an answer.', 'hello-dolly-ai' ),
+			array( 'status' => 502 )
+		);
+	}
 
-    /** @param object $builder @return object */
-    private function usingModel($builder, ?ModelTarget $modelTarget)
-    {
-        if (null !== $modelTarget) {
-            return $modelTarget->apply($builder);
-        }
+	/** @param object $builder @return object */
+	private function using_model( $builder, ?ModelTarget $model_target ) {
+		if ( null !== $model_target ) {
+			return $model_target->apply( $builder );
+		}
 
-        return $builder->using_model_preference(...self::TOOL_MODEL_PREFERENCES);
-    }
+		return $builder->using_model_preference( ...self::TOOL_MODEL_PREFERENCES );
+	}
 
-    /**
-     * @param list<array{role?: string, content?: string}> $history
-     * @return list<Message>
-     */
-    private function historyMessages(array $history): array
-    {
-        $messages = [];
-        $history = array_slice($history, -self::MAX_HISTORY_MESSAGES);
+	/**
+	 * @param list<array{role?: string, content?: string}> $history
+	 * @return list<\WordPress\AiClient\Messages\DTO\Message>
+	 */
+	private function history_messages( array $history ): array {
+		$messages = array();
+		$history  = array_slice( $history, -self::MAX_HISTORY_MESSAGES );
 
-        foreach ($history as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $role = isset($item['role']) ? (string) $item['role'] : '';
-            $content = isset($item['content']) ? trim((string) $item['content']) : '';
-            if ('' === $content || !in_array($role, ['user', 'assistant'], true)) {
-                continue;
-            }
+		foreach ( $history as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$role    = isset( $item['role'] ) ? (string) $item['role'] : '';
+			$content = isset( $item['content'] ) ? trim( (string) $item['content'] ) : '';
+			if ( '' === $content || ! in_array( $role, array( 'user', 'assistant' ), true ) ) {
+				continue;
+			}
 
-            $part = new MessagePart($content);
-            $messages[] = 'user' === $role ? new UserMessage([$part]) : new ModelMessage([$part]);
-        }
+			$part       = new MessagePart( $content );
+			$messages[] = 'user' === $role ? new UserMessage( array( $part ) ) : new ModelMessage( array( $part ) );
+		}
 
-        return $messages;
-    }
+		return $messages;
+	}
 
-    /** @param array<string, int> $usage @param object $result */
-    private function addUsage(array &$usage, $result): void
-    {
-        $tokens = $result->getTokenUsage();
-        $usage['input'] += $tokens->getPromptTokens();
-        $usage['output'] += $tokens->getCompletionTokens();
-        $usage['total'] += $tokens->getTotalTokens();
-        $usage['thinking'] += $tokens->getThoughtTokens() ?? 0;
-    }
+	/** @param array<string, int> $usage @param object $result */
+	private function add_usage( array &$usage, $result ): void {
+		$tokens             = $result->getTokenUsage();
+		$usage['input']    += $tokens->getPromptTokens();
+		$usage['output']   += $tokens->getCompletionTokens();
+		$usage['total']    += $tokens->getTotalTokens();
+		$usage['thinking'] += $tokens->getThoughtTokens() ?? 0;
+	}
 
-    /** @param array<string, float> $costs @param object $result */
-    private function addReportedCost(array &$costs, $result): void
-    {
-        $cost = ReportedCost::fromAiResult($result);
-        if (null === $cost) {
-            return;
-        }
+	/** @param array<string, float> $costs @param object $result */
+	private function add_reported_cost( array &$costs, $result ): void {
+		$cost = ReportedCost::fromAiResult( $result );
+		if ( null === $cost ) {
+			return;
+		}
 
-        $currency = $cost->getCurrency();
-        $costs[$currency] = ($costs[$currency] ?? 0.0) + $cost->getAmount();
-    }
+		$currency           = $cost->getCurrency();
+		$costs[ $currency ] = ( $costs[ $currency ] ?? 0.0 ) + $cost->getAmount();
+	}
 
-    /**
-     * @param array<string, float> $costs
-     * @return array{amount: float, currency: string}|null
-     */
-    private function reportedCost(array $costs): ?array
-    {
-        if (1 !== count($costs)) {
-            return null;
-        }
+	/**
+	 * @param array<string, float> $costs
+	 * @return array{amount: float, currency: string}|null
+	 */
+	private function reported_cost( array $costs ): ?array {
+		if ( 1 !== count( $costs ) ) {
+			return null;
+		}
 
-        $currency = (string) array_key_first($costs);
+		$currency = (string) array_key_first( $costs );
 
-        return [
-            'amount' => $costs[$currency],
-            'currency' => $currency,
-        ];
-    }
+		return array(
+			'amount'   => $costs[ $currency ],
+			'currency' => $currency,
+		);
+	}
 
-    /** @param list<string> $tools */
-    private function collectToolNames(Message $message, array &$tools): void
-    {
-        foreach ($message->getParts() as $part) {
-            $call = $part->getFunctionCall();
-            if (null === $call || null === $call->getName()) {
-                continue;
-            }
-            $tools[] = \WP_AI_Client_Ability_Function_Resolver::function_name_to_ability_name($call->getName());
-        }
-    }
+	/** @param list<string> $tools */
+	private function collect_tool_names( Message $message, array &$tools ): void {
+		foreach ( $message->getParts() as $part ) {
+			$call = $part->getFunctionCall();
+			if ( null === $call || null === $call->get_name() ) {
+				continue;
+			}
+			$tools[] = \WP_AI_Client_Ability_Function_Resolver::function_name_to_ability_name( $call->get_name() );
+		}
+	}
 
-    /** @param array<string, array{url: string, label: string}> $sources */
-    private function collectSources(Message $message, array &$sources): void
-    {
-        foreach ($message->getParts() as $part) {
-            $response = $part->getFunctionResponse();
-            if (!$response instanceof FunctionResponse) {
-                continue;
-            }
+	/** @param array<string, array{url: string, label: string}> $sources */
+	private function collect_sources( Message $message, array &$sources ): void {
+		foreach ( $message->getParts() as $part ) {
+			$response = $part->getFunctionResponse();
+			if ( ! $response instanceof FunctionResponse ) {
+				continue;
+			}
 
-            $this->findSources($response->getResponse(), $sources);
-        }
-    }
+			$this->find_sources( $response->getResponse(), $sources );
+		}
+	}
 
-    /** @param mixed $value @param array<string, array{url: string, label: string}> $sources */
-    private function findSources($value, array &$sources): void
-    {
-        if (!is_array($value)) {
-            return;
-        }
+	/** @param mixed $value @param array<string, array{url: string, label: string}> $sources */
+	private function find_sources( $value, array &$sources ): void {
+		if ( ! is_array( $value ) ) {
+			return;
+		}
 
-        if (isset($value['source']) && is_string($value['source'])) {
-            $url = $value['source'];
-            $sources[$url] = [
-                'url' => $url,
-                'label' => isset($value['source_label']) ? (string) $value['source_label'] : $url,
-            ];
-        }
+		if ( isset( $value['source'] ) && is_string( $value['source'] ) ) {
+			$url             = $value['source'];
+			$sources[ $url ] = array(
+				'url'   => $url,
+				'label' => isset( $value['source_label'] ) ? (string) $value['source_label'] : $url,
+			);
+		}
 
-        foreach ($value as $child) {
-            if (is_array($child)) {
-                $this->findSources($child, $sources);
-            }
-        }
-    }
+		foreach ( $value as $child ) {
+			if ( ! is_array( $child ) ) {
+				continue;
+			}
+
+			$this->find_sources( $child, $sources );
+		}
+	}
 }
