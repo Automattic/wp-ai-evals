@@ -105,8 +105,10 @@ PROMPT;
 				try {
 					$response      = array(
 						'answer'   => $result->toText(),
-						'provider' => $result->getProviderMetadata()->get_id(),
-						'model'    => $result->getModelMetadata()->get_id(),
+						// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+						'provider' => $result->getProviderMetadata()->getId(),
+						// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+						'model'    => $result->getModelMetadata()->getId(),
 						'tokens'   => $usage,
 						'tools'    => array_values( array_unique( $tools ) ),
 						'sources'  => array_values( $sources ),
@@ -235,10 +237,12 @@ PROMPT;
 	private function collect_tool_names( Message $message, array &$tools ): void {
 		foreach ( $message->getParts() as $part ) {
 			$call = $part->getFunctionCall();
-			if ( null === $call || null === $call->get_name() ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+			$call_name = null !== $call ? $call->getName() : null;
+			if ( null === $call_name ) {
 				continue;
 			}
-			$tools[] = \WP_AI_Client_Ability_Function_Resolver::function_name_to_ability_name( $call->get_name() );
+			$tools[] = \WP_AI_Client_Ability_Function_Resolver::function_name_to_ability_name( $call_name );
 		}
 	}
 

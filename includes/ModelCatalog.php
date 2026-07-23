@@ -32,10 +32,12 @@ final class ModelCatalog {
 				$class_name        = $registry->getProviderClassName( $provider_id );
 				$provider_metadata = $class_name::metadata();
 				$configured        = $registry->isProviderConfigured( $provider_id );
-				$provider_name     = method_exists( $provider_metadata, 'get_name' )
-					? (string) $provider_metadata->get_name()
-					: (string) $provider_id;
-				$providers[]       = array(
+				$provider_name     = (string) $provider_id;
+				if ( method_exists( $provider_metadata, 'getName' ) ) {
+					// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+					$provider_name = (string) $provider_metadata->getName();
+				}
+				$providers[] = array(
 					'id'         => $provider_id,
 					'name'       => $provider_name,
 					'configured' => $configured,
@@ -46,11 +48,17 @@ final class ModelCatalog {
 				}
 
 				foreach ( $class_name::modelMetadataDirectory()->listModelMetadata() as $metadata ) {
-					if ( ! is_object( $metadata ) || ! method_exists( $metadata, 'get_id' ) ) {
+					if ( ! is_object( $metadata ) || ! method_exists( $metadata, 'getId' ) ) {
 						continue;
 					}
-					$model_id     = (string) $metadata->get_id();
+					// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+					$model_id     = (string) $metadata->getId();
+					$model_name   = $model_id;
 					$capabilities = array();
+					if ( method_exists( $metadata, 'getName' ) ) {
+						// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+						$model_name = (string) $metadata->getName();
+					}
 					if ( method_exists( $metadata, 'getSupportedCapabilities' ) ) {
 						foreach ( $metadata->getSupportedCapabilities() as $capability ) {
 							if ( ! is_object( $capability ) || ! isset( $capability->value ) ) {
@@ -67,9 +75,7 @@ final class ModelCatalog {
 						'provider'      => $provider_id,
 						'provider_name' => $provider_name,
 						'model'         => $model_id,
-						'name'          => method_exists( $metadata, 'get_name' )
-							? (string) $metadata->get_name()
-							: $model_id,
+						'name'          => $model_name,
 						'capabilities'  => array_values( array_unique( $capabilities ) ),
 					);
 				}

@@ -45,10 +45,14 @@ final class AiResultAdapterTest extends TestCase {
 				return 'answer';
 			}
 
+			public function getId(): string {
+				return 'request-id';
+			}
+
 			/** @return object */
 			public function getProviderMetadata() {
 				return new class() {
-					public function get_id(): string {
+					public function getId(): string {
 						return 'test-provider';
 					}
 				};
@@ -57,7 +61,7 @@ final class AiResultAdapterTest extends TestCase {
 			/** @return object */
 			public function getModelMetadata() {
 				return new class() {
-					public function get_id(): string {
+					public function getId(): string {
 						return 'test-model';
 					}
 				};
@@ -88,6 +92,7 @@ final class AiResultAdapterTest extends TestCase {
 		$adapted  = AiResultAdapter::adapt( $result, 'text' );
 		$metadata = $adapted->get_metadata();
 
+		self::assertSame( 'request-id', $metadata['request_id'] );
 		self::assertSame( 'test-provider', $metadata['provider'] );
 		self::assertSame( 'test-model', $metadata['model'] );
 		self::assertSame( 12, $metadata['tokens']['total'] );

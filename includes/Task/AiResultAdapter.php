@@ -33,19 +33,22 @@ final class AiResultAdapter {
 		}
 
 		$metadata = array();
-		if ( method_exists( $result, 'get_id' ) ) {
-			$metadata['request_id'] = $result->get_id();
+		if ( method_exists( $result, 'getId' ) ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+			$metadata['request_id'] = $result->getId();
 		}
 		if ( method_exists( $result, 'getProviderMetadata' ) ) {
 			$provider = $result->getProviderMetadata();
-			if ( is_object( $provider ) && method_exists( $provider, 'get_id' ) ) {
-				$metadata['provider'] = $provider->get_id();
+			if ( is_object( $provider ) && method_exists( $provider, 'getId' ) ) {
+				// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+				$metadata['provider'] = $provider->getId();
 			}
 		}
 		if ( method_exists( $result, 'getModelMetadata' ) ) {
 			$model = $result->getModelMetadata();
-			if ( is_object( $model ) && method_exists( $model, 'get_id' ) ) {
-				$metadata['model'] = $model->get_id();
+			if ( is_object( $model ) && method_exists( $model, 'getId' ) ) {
+				// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- WordPress AI Client API.
+				$metadata['model'] = $model->getId();
 			}
 		}
 		if ( method_exists( $result, 'getTokenUsage' ) ) {
