@@ -10,6 +10,7 @@
 /node_modules/
 /.pnpm-store/
 /build/
+/VERSION
 /examples/hello-dolly-ai/node_modules/
 /examples/hello-dolly-ai/build/
 /examples/hello-dolly-ai/vendor/

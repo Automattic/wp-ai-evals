@@ -22,7 +22,13 @@ Keep the harness:
 - `includes/`: PHP library, Admin REST API, WP-CLI command, storage, tasks,
   evaluators, and report formatters under the `Automattic\AiEvals` namespace.
 - `src/admin/`: TypeScript and SCSS source for the WordPress Admin application.
-- `build/`: Generated Admin assets. Do not commit this directory.
+- `build/`: Generated Admin assets. Do not commit this directory on development
+  branches. The release workflow adds it only to a tagged release commit.
+- `VERSION`: Generated only while preparing a tagged release. Do not commit it
+  on development branches.
+- `package.json`: Declares the next package version. A successful merge to
+  `trunk` publishes only when this value changes, using the exact declared
+  version without calculating a bump.
 - `tests/`: PHPUnit unit tests for the library.
 - `examples/hello-dolly-ai/`: Functional sample plugin and its test harness.
 - `docs/`: Architecture, authoring guidance, roadmap, and documentation assets.

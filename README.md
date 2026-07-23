@@ -142,6 +142,7 @@ pnpm env:start
 
 - [Authoring evaluation suites](docs/authoring-evals.md)
 - [Architecture and extension points](docs/architecture.md)
+- [Release automation and package contents](docs/releases.md)
 - [Roadmap](docs/roadmap.md)
 - [Hello Dolly setup and commands](examples/hello-dolly-ai/README.md)
 

@@ -1,0 +1,157 @@
+name: Release package
+
+on:
+  workflow_run:
+    workflows:
+      - Tests
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+concurrency:
+  group: package-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'trunk'
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Detect declared release version
+        id: version
+        shell: bash
+        run: |
+          git fetch --force --tags origin
+
+          version="$(php scripts/read-package-version.php package.json)"
+          previous_version="$(
+            git show "${RELEASE_SHA}^:package.json" |
+              php scripts/read-package-version.php -
+          )"
+
+          if [[ "$version" == "$previous_version" ]]; then
+            echo "package.json version is unchanged at $version; skipping release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          tag="v${version}"
+          echo "package.json version changed from $previous_version to $version."
+
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            tag_commit="$(git rev-parse "${tag}^{commit}")"
+            tag_parent="$(git rev-parse "${tag_commit}^" 2>/dev/null || true)"
+            if [[ "$tag_commit" != "$RELEASE_SHA" && "$tag_parent" != "$RELEASE_SHA" ]]; then
+              echo "::error::Release tag $tag already points to another commit."
+              exit 1
+            fi
+
+            echo "Reusing existing release tag $tag for $RELEASE_SHA."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "reuse=false" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out existing release commit
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse == 'true'
+        run: git checkout --detach "${{ steps.version.outputs.tag }}^{commit}"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
+        run: |
+          composer install --no-interaction --prefer-dist
+          pnpm install --frozen-lockfile
+
+      - name: Validate and build
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
+        run: pnpm check
+
+      - name: Prepare release package
+        if: steps.version.outputs.skip != 'true'
+        env:
+          OUTPUT_DIRECTORY: ${{ runner.temp }}/package
+          VERSION: ${{ steps.version.outputs.version }}
+        run: php scripts/prepare-release.php "$VERSION" "$OUTPUT_DIRECTORY"
+
+      - name: Create and push release tag
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.reuse != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git add --force VERSION build
+          git commit -m "Release ${TAG}"
+          git tag --annotate "$TAG" --message "Release ${TAG}"
+          git push origin "$TAG"
+
+      - name: Build release archive
+        if: steps.version.outputs.skip != 'true'
+        env:
+          OUTPUT_DIRECTORY: ${{ runner.temp }}/package
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          archive="$GITHUB_WORKSPACE/automattic-ai-evals-${VERSION}.zip"
+          (
+            cd "$OUTPUT_DIRECTORY"
+            zip -q -r "$archive" automattic-ai-evals
+          )
+          sha256sum "$archive" > "${archive}.sha256"
+
+      - name: Publish GitHub release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          archive="automattic-ai-evals-${VERSION}.zip"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$archive" "${archive}.sha256" \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$archive" "${archive}.sha256" \
+              --generate-notes \
+              --title "$TAG" \
+              --verify-tag \
+              --repo "$GITHUB_REPOSITORY"
+          fi
