@@ -64,6 +64,17 @@ Judge selection has a cross-provider default policy: Anthropic Claude Sonnet 4.6
 - Filter `wp_ai_evals_report_before_store` to redact persisted full reports.
 - Filter `wp_ai_evals_model_catalog` to add, remove, or annotate discovered model entries.
 - Filter `wp_ai_evals_judge_model_target_preferences` to replace the ordered default judge targets.
+- Filter `wp_ai_evals_ai_result_reported_cost` to normalize provider-specific cost metadata.
+
+## Admin execution and persistence
+
+The Admin app uses `@wordpress/element`, `@wordpress/components`, `@wordpress/api-fetch`, and `@wordpress/date`. It starts runs through short authenticated REST requests and advances one case variant at a time. This makes completed results visible immediately without requiring WebSockets, a queue worker, or a long-running HTTP request.
+
+The run configuration records suite, case, and tag filters; repetitions; exact candidate targets; and the optional judge target. The report records inputs, expected values, outputs, task metadata, tool names, token usage, provider-reported cost, requested and resolved models, evaluator reasons, rubric items, and aggregate model variants.
+
+Completed reports and recent summaries use non-autoloaded WordPress options. `wp_ai_evals_history_limit` bounds history, `wp_ai_evals_run_session_ttl` bounds interrupted live sessions, and `wp_ai_evals_report_before_store` allows sensitive fields to be removed before persistence.
+
+The TypeScript source lives in `src/admin`. Generated assets live in `build/admin` and are excluded from source control.
 
 ## Production boundary
 
