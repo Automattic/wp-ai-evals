@@ -41,26 +41,19 @@ jobs:
           git fetch --force --tags origin
 
           version="$(php scripts/read-package-version.php package.json)"
-          previous_version="$(
-            git show "${RELEASE_SHA}^:package.json" |
-              php scripts/read-package-version.php -
-          )"
-
-          if [[ "$version" == "$previous_version" ]]; then
-            echo "package.json version is unchanged at $version; skipping release."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           tag="v${version}"
-          echo "package.json version changed from $previous_version to $version."
 
+          # The release tag is the source of truth for what has shipped. Comparing
+          # package.json against the first parent instead would skip a legitimate
+          # release whenever the bump is not the last commit of a push, and would
+          # make the version currently declared on trunk unreleasable.
           if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
             tag_commit="$(git rev-parse "${tag}^{commit}")"
             tag_parent="$(git rev-parse "${tag_commit}^" 2>/dev/null || true)"
             if [[ "$tag_commit" != "$RELEASE_SHA" && "$tag_parent" != "$RELEASE_SHA" ]]; then
-              echo "::error::Release tag $tag already points to another commit."
-              exit 1
+              echo "$tag has already been released; skipping release."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
 
             echo "Reusing existing release tag $tag for $RELEASE_SHA."
@@ -71,6 +64,7 @@ jobs:
             exit 0
           fi
 
+          echo "package.json declares unreleased version $version."
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "reuse=false" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
