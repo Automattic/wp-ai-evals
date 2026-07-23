@@ -8,40 +8,36 @@ use Automattic\AiEvals\EvaluationContext;
 use Automattic\AiEvals\EvaluatorResult;
 use Automattic\AiEvals\TaskResult;
 
-final class ExactMatch implements EvaluatorInterface
-{
-    private bool $caseSensitive;
+final class ExactMatch implements EvaluatorInterface {
 
-    public function __construct(bool $caseSensitive = true)
-    {
-        $this->caseSensitive = $caseSensitive;
-    }
+	private bool $case_sensitive;
 
-    /** {@inheritDoc} */
-    public function evaluate(TaskResult $result, $expected, EvaluationContext $context): EvaluatorResult
-    {
-        $actual = $result->getOutput();
+	public function __construct( bool $case_sensitive = true ) {
+		$this->case_sensitive = $case_sensitive;
+	}
 
-        if (!$this->caseSensitive && is_string($actual) && is_string($expected)) {
-            $matches = function_exists('mb_strtolower')
-                ? mb_strtolower($actual) === mb_strtolower($expected)
-                : strtolower($actual) === strtolower($expected);
-        } else {
-            $matches = $actual === $expected;
-        }
+	/** {@inheritDoc} */
+	public function evaluate( TaskResult $result, $expected, EvaluationContext $context ): EvaluatorResult {
+		$actual = $result->getOutput();
 
-        return $matches
-            ? EvaluatorResult::pass($this->getName(), $this->getType(), 'Output exactly matched the expected value.')
-            : EvaluatorResult::fail($this->getName(), $this->getType(), 'Output did not exactly match the expected value.');
-    }
+		if ( ! $this->case_sensitive && is_string( $actual ) && is_string( $expected ) ) {
+			$matches = function_exists( 'mb_strtolower' )
+				? mb_strtolower( $actual ) === mb_strtolower( $expected )
+				: strtolower( $actual ) === strtolower( $expected );
+		} else {
+			$matches = $actual === $expected;
+		}
 
-    public function getName(): string
-    {
-        return 'Exact match';
-    }
+		return $matches
+			? EvaluatorResult::pass( $this->get_name(), $this->get_type(), 'Output exactly matched the expected value.' )
+			: EvaluatorResult::fail( $this->get_name(), $this->get_type(), 'Output did not exactly match the expected value.' );
+	}
 
-    public function getType(): string
-    {
-        return 'deterministic';
-    }
+	public function get_name(): string {
+		return 'Exact match';
+	}
+
+	public function get_type(): string {
+		return 'deterministic';
+	}
 }

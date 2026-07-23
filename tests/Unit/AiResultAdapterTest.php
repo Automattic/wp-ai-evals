@@ -4,108 +4,97 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals\Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
 use Automattic\AiEvals\Task\AiResultAdapter;
+use PHPUnit\Framework\TestCase;
 
-final class AiResultAdapterTest extends TestCase
-{
-    public function testReadsTextFromAResultThatExposesToText(): void
-    {
-        $result = new class {
-            public function toText(): string
-            {
-                return 'Hello Dolly';
-            }
-        };
+final class AiResultAdapterTest extends TestCase {
 
-        $adapted = AiResultAdapter::adapt($result, 'text');
+	public function testReadsTextFromAResultThatExposesToText(): void {
+		$result = new class() {
+			public function toText(): string {
+				return 'Hello Dolly';
+			}
+		};
 
-        self::assertSame('Hello Dolly', $adapted->getOutput());
-    }
+		$adapted = AiResultAdapter::adapt( $result, 'text' );
 
-    public function testCoercesAStringableTextResultInsteadOfReturningAMessage(): void
-    {
-        $result = new class {
-            /** @return object */
-            public function toMessage()
-            {
-                return new \stdClass();
-            }
+		self::assertSame( 'Hello Dolly', $adapted->getOutput() );
+	}
 
-            public function __toString(): string
-            {
-                return 'stringified answer';
-            }
-        };
+	public function testCoercesAStringableTextResultInsteadOfReturningAMessage(): void {
+		$result = new class() {
+			/** @return object */
+			public function toMessage() {
+				return new \stdClass();
+			}
 
-        $adapted = AiResultAdapter::adapt($result, 'text');
+			public function __toString(): string {
+				return 'stringified answer';
+			}
+		};
 
-        self::assertIsString($adapted->getOutput());
-        self::assertSame('stringified answer', $adapted->getOutput());
-    }
+		$adapted = AiResultAdapter::adapt( $result, 'text' );
 
-    public function testCapturesProviderModelAndTokenMetadata(): void
-    {
-        $result = new class {
-            public function toText(): string
-            {
-                return 'answer';
-            }
+		self::assertIsString( $adapted->getOutput() );
+		self::assertSame( 'stringified answer', $adapted->getOutput() );
+	}
 
-            /** @return object */
-            public function getProviderMetadata()
-            {
-                return new class {
-                    public function getId(): string
-                    {
-                        return 'test-provider';
-                    }
-                };
-            }
+	public function testCapturesProviderModelAndTokenMetadata(): void {
+		$result = new class() {
+			public function toText(): string {
+				return 'answer';
+			}
 
-            /** @return object */
-            public function getModelMetadata()
-            {
-                return new class {
-                    public function getId(): string
-                    {
-                        return 'test-model';
-                    }
-                };
-            }
+			public function getId(): string {
+				return 'request-id';
+			}
 
-            /** @return object */
-            public function getTokenUsage()
-            {
-                return new class {
-                    public function getPromptTokens(): int
-                    {
-                        return 5;
-                    }
+			/** @return object */
+			public function getProviderMetadata() {
+				return new class() {
+					public function getId(): string {
+						return 'test-provider';
+					}
+				};
+			}
 
-                    public function getCompletionTokens(): int
-                    {
-                        return 7;
-                    }
+			/** @return object */
+			public function getModelMetadata() {
+				return new class() {
+					public function getId(): string {
+						return 'test-model';
+					}
+				};
+			}
 
-                    public function getTotalTokens(): int
-                    {
-                        return 12;
-                    }
+			/** @return object */
+			public function getTokenUsage() {
+				return new class() {
+					public function getPromptTokens(): int {
+						return 5;
+					}
 
-                    public function getThoughtTokens(): int
-                    {
-                        return 0;
-                    }
-                };
-            }
-        };
+					public function getCompletionTokens(): int {
+						return 7;
+					}
 
-        $adapted = AiResultAdapter::adapt($result, 'text');
-        $metadata = $adapted->getMetadata();
+					public function getTotalTokens(): int {
+						return 12;
+					}
 
-        self::assertSame('test-provider', $metadata['provider']);
-        self::assertSame('test-model', $metadata['model']);
-        self::assertSame(12, $metadata['tokens']['total']);
-    }
+					public function getThoughtTokens(): int {
+						return 0;
+					}
+				};
+			}
+		};
+
+		$adapted  = AiResultAdapter::adapt( $result, 'text' );
+		$metadata = $adapted->get_metadata();
+
+		self::assertSame( 'request-id', $metadata['request_id'] );
+		self::assertSame( 'test-provider', $metadata['provider'] );
+		self::assertSame( 'test-model', $metadata['model'] );
+		self::assertSame( 12, $metadata['tokens']['total'] );
+	}
 }

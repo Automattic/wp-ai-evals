@@ -12,17 +12,16 @@
 
 declare(strict_types=1);
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-define('HELLO_DOLLY_AI_VERSION', '0.1.0');
-define('HELLO_DOLLY_AI_FILE', __FILE__);
-define('HELLO_DOLLY_AI_DIR', __DIR__);
+define( 'HELLO_DOLLY_AI_VERSION', '0.1.0' );
+define( 'HELLO_DOLLY_AI_FILE', __FILE__ );
+define( 'HELLO_DOLLY_AI_DIR', __DIR__ );
 
-$hello_dolly_ai_autoloader = __DIR__ . '/vendor/autoload.php';
-if (is_readable($hello_dolly_ai_autoloader)) {
-    require_once $hello_dolly_ai_autoloader;
+if ( is_readable( __DIR__ . '/vendor/autoload.php' ) ) {
+	require_once __DIR__ . '/vendor/autoload.php';
 }
 
 require_once __DIR__ . '/includes/KnowledgeBase.php';
@@ -32,5 +31,5 @@ require_once __DIR__ . '/includes/RestController.php';
 require_once __DIR__ . '/includes/Block.php';
 require_once __DIR__ . '/includes/Plugin.php';
 
-register_activation_hook(__FILE__, ['HelloDollyAI\\Plugin', 'activate']);
+register_activation_hook( __FILE__, array( 'HelloDollyAI\\Plugin', 'activate' ) );
 HelloDollyAI\Plugin::boot();

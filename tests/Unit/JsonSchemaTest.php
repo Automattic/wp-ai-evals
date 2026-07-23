@@ -11,78 +11,72 @@ use Automattic\AiEvals\Evaluator\JsonSchema;
 use Automattic\AiEvals\Suite;
 use Automattic\AiEvals\TaskResult;
 
-final class JsonSchemaTest extends TestCase
-{
-    /** @var array<string, mixed> */
-    private const SCHEMA = [
-        'type' => 'object',
-        'required' => ['name'],
-        'properties' => [
-            'name' => ['type' => 'string'],
-        ],
-    ];
+final class JsonSchemaTest extends TestCase {
 
-    protected function setUp(): void
-    {
-        wp_ai_evals_test_reset_state();
-    }
+	/** @var array<string, mixed> */
+	private const SCHEMA = array(
+		'type'       => 'object',
+		'required'   => array( 'name' ),
+		'properties' => array(
+			'name' => array( 'type' => 'string' ),
+		),
+	);
 
-    public function testPassesStructuredOutputThatMatchesTheSchema(): void
-    {
-        $evaluator = new JsonSchema(self::SCHEMA);
+	protected function setUp(): void {
+		wp_ai_evals_test_reset_state();
+	}
 
-        $result = $evaluator->evaluate(
-            TaskResult::fromOutput(['name' => 'Dolly']),
-            null,
-            $this->context()
-        );
+	public function testPassesStructuredOutputThatMatchesTheSchema(): void {
+		$evaluator = new JsonSchema( self::SCHEMA );
 
-        self::assertTrue($result->hasPassed());
-    }
+		$result = $evaluator->evaluate(
+			TaskResult::fromOutput( array( 'name' => 'Dolly' ) ),
+			null,
+			$this->context()
+		);
 
-    public function testDecodesAndPassesAJsonStringOutput(): void
-    {
-        $evaluator = new JsonSchema(self::SCHEMA);
+		self::assertTrue( $result->hasPassed() );
+	}
 
-        $result = $evaluator->evaluate(
-            TaskResult::fromOutput('{"name":"Dolly"}'),
-            null,
-            $this->context()
-        );
+	public function testDecodesAndPassesAJsonStringOutput(): void {
+		$evaluator = new JsonSchema( self::SCHEMA );
 
-        self::assertTrue($result->hasPassed());
-    }
+		$result = $evaluator->evaluate(
+			TaskResult::fromOutput( '{"name":"Dolly"}' ),
+			null,
+			$this->context()
+		);
 
-    public function testFailsWhenStringOutputIsNotValidJson(): void
-    {
-        $evaluator = new JsonSchema(self::SCHEMA);
+		self::assertTrue( $result->hasPassed() );
+	}
 
-        $result = $evaluator->evaluate(
-            TaskResult::fromOutput('{ not json'),
-            null,
-            $this->context()
-        );
+	public function testFailsWhenStringOutputIsNotValidJson(): void {
+		$evaluator = new JsonSchema( self::SCHEMA );
 
-        self::assertFalse($result->hasPassed());
-        self::assertStringContainsString('valid JSON', $result->getReason());
-    }
+		$result = $evaluator->evaluate(
+			TaskResult::fromOutput( '{ not json' ),
+			null,
+			$this->context()
+		);
 
-    public function testFailsAndSurfacesTheSchemaErrorWhenValidationFails(): void
-    {
-        $evaluator = new JsonSchema(self::SCHEMA);
+		self::assertFalse( $result->hasPassed() );
+		self::assertStringContainsString( 'valid JSON', $result->getReason() );
+	}
 
-        $result = $evaluator->evaluate(
-            TaskResult::fromOutput(['age' => 42]),
-            null,
-            $this->context()
-        );
+	public function testFailsAndSurfacesTheSchemaErrorWhenValidationFails(): void {
+		$evaluator = new JsonSchema( self::SCHEMA );
 
-        self::assertFalse($result->hasPassed());
-        self::assertStringContainsString('required property name', $result->getReason());
-    }
+		$result = $evaluator->evaluate(
+			TaskResult::fromOutput( array( 'age' => 42 ) ),
+			null,
+			$this->context()
+		);
 
-    private function context(): EvaluationContext
-    {
-        return new EvaluationContext(Suite::make('suite'), EvaluationCase::make('case'), 1);
-    }
+		self::assertFalse( $result->hasPassed() );
+		self::assertStringContainsString( 'required property name', $result->getReason() );
+	}
+
+	private function context(): EvaluationContext {
+		return new EvaluationContext( Suite::make( 'suite' ), EvaluationCase::make( 'case' ), 1 );
+	}
 }

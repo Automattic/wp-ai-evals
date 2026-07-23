@@ -8,4 +8,7 @@ Run before submitting changes:
 composer check
 ```
 
+`composer check` includes WordPress Coding Standards. Use `composer phpcs` for
+a focused report and `composer phpcbf` to apply safe automatic fixes.
+
 Public API changes should preserve the vocabulary and layering documented in `docs/architecture.md`.

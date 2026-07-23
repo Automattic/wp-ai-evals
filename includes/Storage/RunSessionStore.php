@@ -7,209 +7,208 @@ namespace Automattic\AiEvals\Storage;
 use Automattic\AiEvals\CaseResult;
 use Automattic\AiEvals\Exception\RuntimeException;
 use Automattic\AiEvals\Registry;
-use Automattic\AiEvals\RunReport;
 use Automattic\AiEvals\RunConfiguration;
+use Automattic\AiEvals\RunReport;
 use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\Selection;
 
-final class RunSessionStore
-{
-    private const TRANSIENT_PREFIX = 'wp_ai_evals_session_';
-    private int $ttl;
+final class RunSessionStore {
 
-    public function __construct(int $ttl = 3600)
-    {
-        if (function_exists('apply_filters')) {
-            $ttl = (int) apply_filters('wp_ai_evals_run_session_ttl', $ttl);
-        }
+	private const TRANSIENT_PREFIX = 'wp_ai_evals_session_';
+	private int $ttl;
 
-        $this->ttl = max(60, $ttl);
-    }
+	public function __construct( int $ttl = 3600 ) {
+		if ( function_exists( 'apply_filters' ) ) {
+			$ttl = (int) apply_filters( 'wp_ai_evals_run_session_ttl', $ttl );
+		}
 
-    /** @return array<string, mixed> */
-    public function start(
-        Registry $registry,
-        Selection $selection,
-        Runner $runner,
-        ?RunConfiguration $configuration = null
-    ): array {
-        $this->assertAvailable();
-        $configuration = $configuration ?? new RunConfiguration();
-        $queue = [];
+		$this->ttl = max( 60, $ttl );
+	}
 
-        foreach ($registry->all() as $suite) {
-            foreach ($suite->getCases() as $case) {
-                if (!$selection->matches($suite, $case)) {
-                    continue;
-                }
+	/** @return array<string, mixed> */
+	public function start(
+		Registry $registry,
+		Selection $selection,
+		Runner $runner,
+		?RunConfiguration $configuration = null
+	): array {
+		$this->assert_available();
+		$configuration = $configuration ?? new RunConfiguration();
+		$queue         = array();
+		$repetitions   = $selection->get_repetitions();
 
-                foreach ($runner->targetsForCase($case, $configuration) as $modelTarget) {
-                    for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
-                        $queue[] = [
-                            'suite' => $suite->getId(),
-                            'case' => $case->getId(),
-                            'iteration' => $iteration,
-                            'model_target' => null !== $modelTarget ? $modelTarget->jsonSerialize() : null,
-                        ];
-                    }
-                }
-            }
-        }
+		foreach ( $registry->all() as $suite ) {
+			foreach ( $suite->get_cases() as $evaluation_case ) {
+				if ( ! $selection->matches( $suite, $evaluation_case ) ) {
+					continue;
+				}
 
-        $session = [
-            'id' => $runner->makeRunId(),
-            'started_at' => gmdate('c'),
-            'started_microtime' => microtime(true),
-            'total' => count($queue),
-            'queue' => $queue,
-            'results' => [],
-            'configuration' => $configuration->jsonSerialize(),
-        ];
+				foreach ( $runner->targets_for_case( $evaluation_case, $configuration ) as $model_target ) {
+					for ( $iteration = 1; $iteration <= $repetitions; ++$iteration ) {
+						$queue[] = array(
+							'suite'        => $suite->get_id(),
+							'case'         => $evaluation_case->get_id(),
+							'iteration'    => $iteration,
+							'model_target' => null !== $model_target ? $model_target->jsonSerialize() : null,
+						);
+					}
+				}
+			}
+		}
 
-        $this->write($session);
+		$session = array(
+			'id'                => $runner->make_run_id(),
+			'started_at'        => gmdate( 'c' ),
+			'started_microtime' => microtime( true ),
+			'total'             => count( $queue ),
+			'queue'             => $queue,
+			'results'           => array(),
+			'configuration'     => $configuration->jsonSerialize(),
+		);
 
-        return $this->normalize($session, false);
-    }
+		$this->write( $session );
 
-    /** @return array<string, mixed>|null */
-    public function status(string $runId): ?array
-    {
-        $session = $this->read($runId);
+		return $this->normalize( $session, false );
+	}
 
-        return null === $session ? null : $this->normalize($session, false);
-    }
+	/** @return array<string, mixed>|null */
+	public function status( string $run_id ): ?array {
+		$session = $this->read( $run_id );
 
-    /**
-     * Advances a live run by one case variant.
-     *
-     * This performs an unlocked read-modify-write on the session transient. The
-     * Admin app awaits each `/next` request before issuing the following one, so
-     * calls are serialized in practice. Concurrent advances of the same run (for
-     * example, the same session driven from two browser tabs) can race and
-     * double-process a queue item; callers that cannot guarantee serialization
-     * should add their own locking.
-     *
-     * @return array{session: array<string, mixed>, report: RunReport|null}
-     */
-    public function advance(string $runId, Registry $registry, Runner $runner): array
-    {
-        $session = $this->read($runId);
-        if (null === $session) {
-            throw new RuntimeException(sprintf('Unknown or expired evaluation run session "%s".', $runId));
-        }
+		return null === $session ? null : $this->normalize( $session, false );
+	}
 
-        if ([] !== $session['queue']) {
-            $next = array_shift($session['queue']);
-            $suite = $registry->get((string) $next['suite']);
-            $cases = $suite->getCases();
-            $caseId = (string) $next['case'];
-            if (!isset($cases[$caseId])) {
-                throw new RuntimeException(sprintf('Unknown evaluation case "%s/%s".', $suite->getId(), $caseId));
-            }
+	/**
+	 * Advances a live run by one case variant.
+	 *
+	 * This performs an unlocked read-modify-write on the session transient. The
+	 * Admin app awaits each `/next` request before issuing the following one, so
+	 * calls are serialized in practice. Concurrent advances of the same run (for
+	 * example, the same session driven from two browser tabs) can race and
+	 * double-process a queue item; callers that cannot guarantee serialization
+	 * should add their own locking.
+	 *
+	 * @return array{session: array<string, mixed>, report: \Automattic\AiEvals\RunReport|null}
+	 */
+	public function advance( string $run_id, Registry $registry, Runner $runner ): array {
+		$session = $this->read( $run_id );
+		if ( null === $session ) {
+			throw new RuntimeException(
+				sprintf( 'Unknown or expired evaluation run session "%s".', esc_html( $run_id ) )
+			);
+		}
 
-            $configuration = $this->configuration($session);
-            $modelTarget = isset($next['model_target']) && is_array($next['model_target'])
-                ? \Automattic\AiEvals\ModelTarget::fromArray($next['model_target'])
-                : null;
-            $session['results'][] = $runner->runCase(
-                $suite,
-                $cases[$caseId],
-                (int) $next['iteration'],
-                $modelTarget,
-                $configuration
-            );
-        }
+		if ( array() !== $session['queue'] ) {
+			$next    = array_shift( $session['queue'] );
+			$suite   = $registry->get( (string) $next['suite'] );
+			$cases   = $suite->get_cases();
+			$case_id = (string) $next['case'];
+			if ( ! isset( $cases[ $case_id ] ) ) {
+				throw new RuntimeException(
+					sprintf(
+						'Unknown evaluation case "%s/%s".',
+						esc_html( $suite->get_id() ),
+						esc_html( $case_id )
+					)
+				);
+			}
 
-        if ([] !== $session['queue']) {
-            $this->write($session);
+			$configuration        = $this->configuration( $session );
+			$model_target         = isset( $next['model_target'] ) && is_array( $next['model_target'] )
+				? \Automattic\AiEvals\ModelTarget::fromArray( $next['model_target'] )
+				: null;
+			$session['results'][] = $runner->run_case(
+				$suite,
+				$cases[ $case_id ],
+				(int) $next['iteration'],
+				$model_target,
+				$configuration
+			);
+		}
 
-            return [
-                'session' => $this->normalize($session, false),
-                'report' => null,
-            ];
-        }
+		if ( array() !== $session['queue'] ) {
+			$this->write( $session );
 
-        $report = $this->report($session);
-        (new HistoryStore())->save($report);
-        delete_transient($this->key($runId));
+			return array(
+				'session' => $this->normalize( $session, false ),
+				'report'  => null,
+			);
+		}
 
-        return [
-            'session' => $this->normalize($session, true),
-            'report' => $report,
-        ];
-    }
+		$report = $this->report( $session );
+		( new HistoryStore() )->save( $report );
+		delete_transient( $this->key( $run_id ) );
 
-    /** @param array<string, mixed> $session */
-    private function write(array $session): void
-    {
-        set_transient($this->key((string) $session['id']), $session, $this->ttl);
-    }
+		return array(
+			'session' => $this->normalize( $session, true ),
+			'report'  => $report,
+		);
+	}
 
-    /** @return array<string, mixed>|null */
-    private function read(string $runId): ?array
-    {
-        $this->assertAvailable();
-        if (1 !== preg_match('/^[a-zA-Z0-9._-]+$/', $runId)) {
-            return null;
-        }
+	/** @param array<string, mixed> $session */
+	private function write( array $session ): void {
+		set_transient( $this->key( (string) $session['id'] ), $session, $this->ttl );
+	}
 
-        $session = get_transient($this->key($runId));
+	/** @return array<string, mixed>|null */
+	private function read( string $run_id ): ?array {
+		$this->assert_available();
+		if ( 1 !== preg_match( '/^[a-zA-Z0-9._-]+$/', $run_id ) ) {
+			return null;
+		}
 
-        return is_array($session) ? $session : null;
-    }
+		$session = get_transient( $this->key( $run_id ) );
 
-    /** @param array<string, mixed> $session @return array<string, mixed> */
-    private function normalize(array $session, bool $complete): array
-    {
-        $report = $this->report($session);
+		return is_array( $session ) ? $session : null;
+	}
 
-        return [
-            'id' => $session['id'],
-            'started_at' => $session['started_at'],
-            'total' => $session['total'],
-            'completed' => count($session['results']),
-            'remaining' => count($session['queue']),
-            'complete' => $complete,
-            'duration_ms' => $report->getDurationMilliseconds(),
-            'configuration' => $report->getConfiguration()->jsonSerialize(),
-            'summary' => $report->jsonSerialize()['summary'],
-            'variants' => $report->getVariants(),
-            'results' => array_map(
-                static fn(CaseResult $result): array => $result->jsonSerialize(),
-                $session['results']
-            ),
-        ];
-    }
+	/** @param array<string, mixed> $session @return array<string, mixed> */
+	private function normalize( array $session, bool $complete ): array {
+		$report = $this->report( $session );
 
-    /** @param array<string, mixed> $session */
-    private function report(array $session): RunReport
-    {
-        return new RunReport(
-            (string) $session['id'],
-            (string) $session['started_at'],
-            (microtime(true) - (float) $session['started_microtime']) * 1000,
-            $session['results'],
-            $this->configuration($session)
-        );
-    }
+		return array(
+			'id'            => $session['id'],
+			'started_at'    => $session['started_at'],
+			'total'         => $session['total'],
+			'completed'     => count( $session['results'] ),
+			'remaining'     => count( $session['queue'] ),
+			'complete'      => $complete,
+			'duration_ms'   => $report->getDurationMilliseconds(),
+			'configuration' => $report->getConfiguration()->jsonSerialize(),
+			'summary'       => $report->jsonSerialize()['summary'],
+			'variants'      => $report->getVariants(),
+			'results'       => array_map(
+				static fn( CaseResult $result ): array => $result->jsonSerialize(),
+				$session['results']
+			),
+		);
+	}
 
-    /** @param array<string, mixed> $session */
-    private function configuration(array $session): RunConfiguration
-    {
-        return isset($session['configuration']) && is_array($session['configuration'])
-            ? RunConfiguration::fromArray($session['configuration'])
-            : new RunConfiguration();
-    }
+	/** @param array<string, mixed> $session */
+	private function report( array $session ): RunReport {
+		return new RunReport(
+			(string) $session['id'],
+			(string) $session['started_at'],
+			( microtime( true ) - (float) $session['started_microtime'] ) * 1000,
+			$session['results'],
+			$this->configuration( $session )
+		);
+	}
 
-    private function key(string $runId): string
-    {
-        return self::TRANSIENT_PREFIX . $runId;
-    }
+	/** @param array<string, mixed> $session */
+	private function configuration( array $session ): RunConfiguration {
+		return isset( $session['configuration'] ) && is_array( $session['configuration'] )
+			? RunConfiguration::fromArray( $session['configuration'] )
+			: new RunConfiguration();
+	}
 
-    private function assertAvailable(): void
-    {
-        if (!function_exists('get_transient') || !function_exists('set_transient')) {
-            throw new RuntimeException('WordPress transient storage is unavailable for live evaluation runs.');
-        }
-    }
+	private function key( string $run_id ): string {
+		return self::TRANSIENT_PREFIX . $run_id;
+	}
+
+	private function assert_available(): void {
+		if ( ! function_exists( 'get_transient' ) || ! function_exists( 'set_transient' ) ) {
+			throw new RuntimeException( 'WordPress transient storage is unavailable for live evaluation runs.' );
+		}
+	}
 }

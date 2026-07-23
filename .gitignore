@@ -2,6 +2,7 @@
 /composer.lock
 /.phpunit.result.cache
 /.phpunit.cache/
+/.phpcs-cache.json
 /examples/hello-dolly-ai/.phpunit.result.cache
 /.idea/
 /.vscode/

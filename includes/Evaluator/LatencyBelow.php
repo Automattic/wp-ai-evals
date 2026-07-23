@@ -9,39 +9,35 @@ use Automattic\AiEvals\EvaluatorResult;
 use Automattic\AiEvals\Exception\InvalidArgumentException;
 use Automattic\AiEvals\TaskResult;
 
-final class LatencyBelow implements EvaluatorInterface
-{
-    private float $maximumMilliseconds;
+final class LatencyBelow implements EvaluatorInterface {
 
-    public function __construct(float $maximumMilliseconds)
-    {
-        if ($maximumMilliseconds <= 0) {
-            throw new InvalidArgumentException('Maximum latency must be greater than zero.');
-        }
+	private float $maximum_milliseconds;
 
-        $this->maximumMilliseconds = $maximumMilliseconds;
-    }
+	public function __construct( float $maximum_milliseconds ) {
+		if ( $maximum_milliseconds <= 0 ) {
+			throw new InvalidArgumentException( 'Maximum latency must be greater than zero.' );
+		}
 
-    /** {@inheritDoc} */
-    public function evaluate(TaskResult $result, $expected, EvaluationContext $context): EvaluatorResult
-    {
-        $metadata = $result->getMetadata();
-        $actual = isset($metadata['duration_ms']) ? (float) $metadata['duration_ms'] : INF;
-        $passed = $actual <= $this->maximumMilliseconds;
-        $reason = sprintf('Task completed in %.1f ms (limit %.1f ms).', $actual, $this->maximumMilliseconds);
+		$this->maximum_milliseconds = $maximum_milliseconds;
+	}
 
-        return $passed
-            ? EvaluatorResult::pass($this->getName(), $this->getType(), $reason)
-            : EvaluatorResult::fail($this->getName(), $this->getType(), $reason);
-    }
+	/** {@inheritDoc} */
+	public function evaluate( TaskResult $result, $expected, EvaluationContext $context ): EvaluatorResult {
+		$metadata = $result->get_metadata();
+		$actual   = isset( $metadata['duration_ms'] ) ? (float) $metadata['duration_ms'] : INF;
+		$passed   = $actual <= $this->maximum_milliseconds;
+		$reason   = sprintf( 'Task completed in %.1f ms (limit %.1f ms).', $actual, $this->maximum_milliseconds );
 
-    public function getName(): string
-    {
-        return 'Latency';
-    }
+		return $passed
+			? EvaluatorResult::pass( $this->get_name(), $this->get_type(), $reason )
+			: EvaluatorResult::fail( $this->get_name(), $this->get_type(), $reason );
+	}
 
-    public function getType(): string
-    {
-        return 'performance';
-    }
+	public function get_name(): string {
+		return 'Latency';
+	}
+
+	public function get_type(): string {
+		return 'performance';
+	}
 }

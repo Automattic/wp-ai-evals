@@ -6,274 +6,267 @@ namespace Automattic\AiEvals\Admin;
 
 use Automattic\AiEvals\Kernel;
 use Automattic\AiEvals\ModelCatalog;
-use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\RunConfiguration;
+use Automattic\AiEvals\Runner;
 use Automattic\AiEvals\Selection;
 use Automattic\AiEvals\Storage\HistoryStore;
 use Automattic\AiEvals\Storage\RunSessionStore;
 
-final class RestController
-{
-    private const MODEL_CATALOG_TRANSIENT = 'wp_ai_evals_model_catalog';
-    private Kernel $kernel;
+final class RestController {
 
-    public function __construct(Kernel $kernel)
-    {
-        $this->kernel = $kernel;
-    }
+	private const MODEL_CATALOG_TRANSIENT = 'wp_ai_evals_model_catalog';
+	private Kernel $kernel;
 
-    public function registerRoutes(): void
-    {
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/models',
-            [
-                'methods' => \WP_REST_Server::READABLE,
-                'callback' => [$this, 'models'],
-                'permission_callback' => [$this, 'canRun'],
-                'args' => [
-                    'refresh' => [
-                        'type' => 'boolean',
-                        'default' => false,
-                    ],
-                ],
-            ]
-        );
+	public function __construct( Kernel $kernel ) {
+		$this->kernel = $kernel;
+	}
 
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/run',
-            [
-                'methods' => \WP_REST_Server::CREATABLE,
-                'callback' => [$this, 'run'],
-                'permission_callback' => [$this, 'canRun'],
-                'args' => $this->selectionArguments(),
-            ]
-        );
+	public function register_routes(): void {
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/models',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'models' ),
+				'permission_callback' => array( $this, 'can_run' ),
+				'args'                => array(
+					'refresh' => array(
+						'type'    => 'boolean',
+						'default' => false,
+					),
+				),
+			)
+		);
 
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/run-sessions',
-            [
-                'methods' => \WP_REST_Server::CREATABLE,
-                'callback' => [$this, 'startSession'],
-                'permission_callback' => [$this, 'canRun'],
-                'args' => $this->selectionArguments(),
-            ]
-        );
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/run',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'run' ),
+				'permission_callback' => array( $this, 'can_run' ),
+				'args'                => $this->selection_arguments(),
+			)
+		);
 
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/run-sessions/(?P<run_id>[a-zA-Z0-9._-]+)',
-            [
-                'methods' => \WP_REST_Server::READABLE,
-                'callback' => [$this, 'getSession'],
-                'permission_callback' => [$this, 'canRun'],
-            ]
-        );
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/run-sessions',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'start_session' ),
+				'permission_callback' => array( $this, 'can_run' ),
+				'args'                => $this->selection_arguments(),
+			)
+		);
 
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/run-sessions/(?P<run_id>[a-zA-Z0-9._-]+)/next',
-            [
-                'methods' => \WP_REST_Server::CREATABLE,
-                'callback' => [$this, 'advanceSession'],
-                'permission_callback' => [$this, 'canRun'],
-            ]
-        );
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/run-sessions/(?P<run_id>[a-zA-Z0-9._-]+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_session' ),
+				'permission_callback' => array( $this, 'can_run' ),
+			)
+		);
 
-        register_rest_route(
-            'wp-ai-evals/v1',
-            '/runs/(?P<run_id>[a-zA-Z0-9._-]+)',
-            [
-                'methods' => \WP_REST_Server::READABLE,
-                'callback' => [$this, 'getRun'],
-                'permission_callback' => [$this, 'canRun'],
-            ]
-        );
-    }
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/run-sessions/(?P<run_id>[a-zA-Z0-9._-]+)/next',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'advance_session' ),
+				'permission_callback' => array( $this, 'can_run' ),
+			)
+		);
 
-    public function canRun(): bool
-    {
-        return current_user_can($this->capability());
-    }
+		register_rest_route(
+			'wp-ai-evals/v1',
+			'/runs/(?P<run_id>[a-zA-Z0-9._-]+)',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_run' ),
+				'permission_callback' => array( $this, 'can_run' ),
+			)
+		);
+	}
 
-    public function models(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $refresh = (bool) $request->get_param('refresh');
-        $catalog = !$refresh && function_exists('get_transient')
-            ? get_transient(self::MODEL_CATALOG_TRANSIENT)
-            : false;
+	public function can_run(): bool {
+		return current_user_can( 'manage_options' );
+	}
 
-        if (!is_array($catalog) || !array_key_exists('default_judge_target', $catalog)) {
-            $catalog = (new ModelCatalog())->discover();
-            if (function_exists('set_transient')) {
-                set_transient(self::MODEL_CATALOG_TRANSIENT, $catalog, 5 * MINUTE_IN_SECONDS);
-            }
-        }
+	public function models( \WP_REST_Request $request ): \WP_REST_Response {
+		$refresh = (bool) $request->get_param( 'refresh' );
+		$catalog = ! $refresh && function_exists( 'get_transient' )
+			? get_transient( self::MODEL_CATALOG_TRANSIENT )
+			: false;
 
-        return rest_ensure_response(['catalog' => $catalog]);
-    }
+		if ( ! is_array( $catalog ) || ! array_key_exists( 'default_judge_target', $catalog ) ) {
+			$catalog = ( new ModelCatalog() )->discover();
+			if ( function_exists( 'set_transient' ) ) {
+				set_transient( self::MODEL_CATALOG_TRANSIENT, $catalog, 5 * MINUTE_IN_SECONDS );
+			}
+		}
 
-    public function run(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $this->kernel->initialize();
-        try {
-            $report = (new Runner())->run(
-                $this->kernel->getRegistry(),
-                $this->selection($request),
-                $this->configuration($request)
-            );
-        } catch (\Throwable $error) {
-            return new \WP_REST_Response(['message' => $error->getMessage()], 400);
-        }
+		return rest_ensure_response( array( 'catalog' => $catalog ) );
+	}
 
-        $history = new HistoryStore();
-        $history->save($report);
-        $normalized = json_decode((string) wp_json_encode($report), true);
+	public function run( \WP_REST_Request $request ): \WP_REST_Response {
+		$this->kernel->initialize();
+		try {
+			$report = ( new Runner() )->run(
+				$this->kernel->get_registry(),
+				$this->selection( $request ),
+				$this->configuration( $request )
+			);
+		} catch ( \Throwable $error ) {
+			return new \WP_REST_Response( array( 'message' => $error->getMessage() ), 400 );
+		}
 
-        return rest_ensure_response([
-            'report' => is_array($normalized) ? $normalized : [],
-            'history' => $history->all(),
-        ]);
-    }
+		$history = new HistoryStore();
+		$history->save( $report );
+		$normalized = json_decode( (string) wp_json_encode( $report ), true );
 
-    public function startSession(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $this->kernel->initialize();
-        try {
-            $session = (new RunSessionStore())->start(
-                $this->kernel->getRegistry(),
-                $this->selection($request),
-                new Runner(),
-                $this->configuration($request)
-            );
-        } catch (\Throwable $error) {
-            return new \WP_REST_Response(['message' => $error->getMessage()], 400);
-        }
+		return rest_ensure_response(
+			array(
+				'report'  => is_array( $normalized ) ? $normalized : array(),
+				'history' => $history->all(),
+			)
+		);
+	}
 
-        return rest_ensure_response(['session' => $session]);
-    }
+	public function start_session( \WP_REST_Request $request ): \WP_REST_Response {
+		$this->kernel->initialize();
+		try {
+			$session = ( new RunSessionStore() )->start(
+				$this->kernel->get_registry(),
+				$this->selection( $request ),
+				new Runner(),
+				$this->configuration( $request )
+			);
+		} catch ( \Throwable $error ) {
+			return new \WP_REST_Response( array( 'message' => $error->getMessage() ), 400 );
+		}
 
-    public function getSession(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $session = (new RunSessionStore())->status((string) $request->get_param('run_id'));
-        if (null === $session) {
-            return new \WP_REST_Response(['message' => __('The live evaluation run was not found or expired.', 'wp-ai-evals')], 404);
-        }
+		return rest_ensure_response( array( 'session' => $session ) );
+	}
 
-        return rest_ensure_response(['session' => $session]);
-    }
+	public function get_session( \WP_REST_Request $request ): \WP_REST_Response {
+		$session = ( new RunSessionStore() )->status( (string) $request->get_param( 'run_id' ) );
+		if ( null === $session ) {
+			return new \WP_REST_Response( array( 'message' => __( 'The live evaluation run was not found or expired.', 'wp-ai-evals' ) ), 404 );
+		}
 
-    public function advanceSession(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $this->kernel->initialize();
+		return rest_ensure_response( array( 'session' => $session ) );
+	}
 
-        try {
-            $advanced = (new RunSessionStore())->advance(
-                (string) $request->get_param('run_id'),
-                $this->kernel->getRegistry(),
-                new Runner()
-            );
-        } catch (\Throwable $error) {
-            return new \WP_REST_Response(['message' => $error->getMessage()], 404);
-        }
+	public function advance_session( \WP_REST_Request $request ): \WP_REST_Response {
+		$this->kernel->initialize();
 
-        return rest_ensure_response([
-            'session' => $advanced['session'],
-            'report' => $this->normalize($advanced['report']),
-            'history' => null !== $advanced['report'] ? (new HistoryStore())->all() : null,
-        ]);
-    }
+		try {
+			$advanced = ( new RunSessionStore() )->advance(
+				(string) $request->get_param( 'run_id' ),
+				$this->kernel->get_registry(),
+				new Runner()
+			);
+		} catch ( \Throwable $error ) {
+			return new \WP_REST_Response( array( 'message' => $error->getMessage() ), 404 );
+		}
 
-    public function getRun(\WP_REST_Request $request): \WP_REST_Response
-    {
-        $report = (new HistoryStore())->find((string) $request->get_param('run_id'));
-        if (null === $report) {
-            return new \WP_REST_Response([
-                'message' => __('Full details are not available for this run. Older summary-only runs cannot be expanded.', 'wp-ai-evals'),
-            ], 404);
-        }
+		return rest_ensure_response(
+			array(
+				'session' => $advanced['session'],
+				'report'  => $this->normalize( $advanced['report'] ),
+				'history' => null !== $advanced['report'] ? ( new HistoryStore() )->all() : null,
+			)
+		);
+	}
 
-        return rest_ensure_response(['report' => $report]);
-    }
+	public function get_run( \WP_REST_Request $request ): \WP_REST_Response {
+		$report = ( new HistoryStore() )->find( (string) $request->get_param( 'run_id' ) );
+		if ( null === $report ) {
+			return new \WP_REST_Response(
+				array(
+					'message' => __( 'Full details are not available for this run. Older summary-only runs cannot be expanded.', 'wp-ai-evals' ),
+				),
+				404
+			);
+		}
 
-    /** @return array<string, mixed> */
-    private function listArgument(): array
-    {
-        return [
-            'type' => 'array',
-            'default' => [],
-            'items' => ['type' => 'string'],
-        ];
-    }
+		return rest_ensure_response( array( 'report' => $report ) );
+	}
 
-    /** @return array<string, mixed> */
-    private function selectionArguments(): array
-    {
-        return [
-            'suites' => $this->listArgument(),
-            'tags' => $this->listArgument(),
-            'cases' => $this->listArgument(),
-            'repetitions' => [
-                'type' => 'integer',
-                'default' => 1,
-                'minimum' => 1,
-                'maximum' => 10,
-            ],
-            'model_targets' => $this->listArgument(),
-            'judge_model_target' => [
-                'type' => 'string',
-                'default' => '',
-            ],
-        ];
-    }
+	/** @return array<string, mixed> */
+	private function list_argument(): array {
+		return array(
+			'type'    => 'array',
+			'default' => array(),
+			'items'   => array( 'type' => 'string' ),
+		);
+	}
 
-    private function selection(\WP_REST_Request $request): Selection
-    {
-        return new Selection(
-            $this->sanitizeList($request->get_param('suites')),
-            $this->sanitizeList($request->get_param('cases')),
-            $this->sanitizeList($request->get_param('tags')),
-            max(1, min(10, (int) $request->get_param('repetitions')))
-        );
-    }
+	/** @return array<string, mixed> */
+	private function selection_arguments(): array {
+		return array(
+			'suites'             => $this->list_argument(),
+			'tags'               => $this->list_argument(),
+			'cases'              => $this->list_argument(),
+			'repetitions'        => array(
+				'type'    => 'integer',
+				'default' => 1,
+				'minimum' => 1,
+				'maximum' => 10,
+			),
+			'model_targets'      => $this->list_argument(),
+			'judge_model_target' => array(
+				'type'    => 'string',
+				'default' => '',
+			),
+		);
+	}
 
-    private function configuration(\WP_REST_Request $request): RunConfiguration
-    {
-        return RunConfiguration::fromStrings(
-            $this->sanitizeList($request->get_param('model_targets')),
-            sanitize_text_field((string) $request->get_param('judge_model_target'))
-        );
-    }
+	private function selection( \WP_REST_Request $request ): Selection {
+		return new Selection(
+			$this->sanitize_list( $request->get_param( 'suites' ) ),
+			$this->sanitize_list( $request->get_param( 'cases' ) ),
+			$this->sanitize_list( $request->get_param( 'tags' ) ),
+			max( 1, min( 10, (int) $request->get_param( 'repetitions' ) ) )
+		);
+	}
 
-    /** @param mixed $value @return array<string, mixed>|null */
-    private function normalize($value): ?array
-    {
-        if (null === $value) {
-            return null;
-        }
+	private function configuration( \WP_REST_Request $request ): RunConfiguration {
+		return RunConfiguration::fromStrings(
+			$this->sanitize_list( $request->get_param( 'model_targets' ) ),
+			sanitize_text_field( (string) $request->get_param( 'judge_model_target' ) )
+		);
+	}
 
-        $normalized = json_decode((string) wp_json_encode($value), true);
+	/** @param mixed $value @return array<string, mixed>|null */
+	private function normalize( $value ): ?array {
+		if ( null === $value ) {
+			return null;
+		}
 
-        return is_array($normalized) ? $normalized : [];
-    }
+		$normalized = json_decode( (string) wp_json_encode( $value ), true );
 
-    /** @param mixed $value @return list<string> */
-    private function sanitizeList($value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
+		return is_array( $normalized ) ? $normalized : array();
+	}
 
-        return array_values(array_unique(array_filter(array_map(
-            static fn($item): string => sanitize_text_field((string) $item),
-            $value
-        ))));
-    }
+	/** @param mixed $value @return list<string> */
+	private function sanitize_list( $value ): array {
+		if ( ! is_array( $value ) ) {
+			return array();
+		}
 
-    private function capability(): string
-    {
-        return (string) apply_filters('wp_ai_evals_capability', 'manage_options');
-    }
+		return array_values(
+			array_unique(
+				array_filter(
+					array_map(
+						static fn( $item ): string => sanitize_text_field( (string) $item ),
+						$value
+					)
+				)
+			)
+		);
+	}
 }

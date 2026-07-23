@@ -10,169 +10,157 @@ use Automattic\AiEvals\Task\CallableTask;
 use Automattic\AiEvals\Task\ModelCallableTask;
 use Automattic\AiEvals\Task\TaskInterface;
 
-final class EvaluationCase
-{
-    private string $id;
-    private string $label;
+final class EvaluationCase {
 
-    /** @var mixed */
-    private $input = null;
+	private string $id;
+	private string $label;
 
-    /** @var mixed */
-    private $expected = null;
+	/** @var mixed */
+	private $input = null;
 
-    private ?TaskInterface $task = null;
+	/** @var mixed */
+	private $expected = null;
 
-    /** @var list<EvaluatorInterface> */
-    private array $evaluators = [];
+	private ?TaskInterface $task = null;
 
-    /** @var list<string> */
-    private array $tags = [];
+	/** @var list<\Automattic\AiEvals\Evaluator\EvaluatorInterface> */
+	private array $evaluators = array();
 
-    /** @var array<string, mixed> */
-    private array $metadata = [];
+	/** @var list<string> */
+	private array $tags = array();
 
-    private function __construct(string $id, string $label)
-    {
-        if (1 !== preg_match('/^[a-z0-9][a-z0-9._-]*$/', $id)) {
-            throw new InvalidArgumentException(
-                sprintf('Invalid case ID "%s". Use lowercase letters, numbers, dots, underscores, or hyphens.', $id)
-            );
-        }
+	/** @var array<string, mixed> */
+	private array $metadata = array();
 
-        $this->id = $id;
-        $this->label = $label;
-    }
+	private function __construct( string $id, string $label ) {
+		if ( 1 !== preg_match( '/^[a-z0-9][a-z0-9._-]*$/', $id ) ) {
+			throw new InvalidArgumentException(
+				sprintf(
+					'Invalid case ID "%s". Use lowercase letters, numbers, dots, underscores, or hyphens.',
+					esc_html( $id )
+				)
+			);
+		}
 
-    public static function make(string $id, string $label = ''): self
-    {
-        return new self($id, '' !== $label ? $label : $id);
-    }
+		$this->id    = $id;
+		$this->label = $label;
+	}
 
-    /** @param mixed $input */
-    public function input($input): self
-    {
-        $this->input = $input;
+	public static function make( string $id, string $label = '' ): self {
+		return new self( $id, '' !== $label ? $label : $id );
+	}
 
-        return $this;
-    }
+	/** @param mixed $input */
+	public function input( $input ): self {
+		$this->input = $input;
 
-    /** @param mixed $expected */
-    public function expected($expected): self
-    {
-        $this->expected = $expected;
+		return $this;
+	}
 
-        return $this;
-    }
+	/** @param mixed $expected */
+	public function expected( $expected ): self {
+		$this->expected = $expected;
 
-    /** @param TaskInterface|callable $task */
-    public function task($task): self
-    {
-        if ($task instanceof TaskInterface) {
-            $this->task = $task;
+		return $this;
+	}
 
-            return $this;
-        }
+	/** @param \Automattic\AiEvals\Task\TaskInterface|callable $task */
+	public function task( $task ): self {
+		if ( $task instanceof TaskInterface ) {
+			$this->task = $task;
 
-        if (!is_callable($task)) {
-            throw new InvalidArgumentException('An eval task must implement TaskInterface or be callable.');
-        }
+			return $this;
+		}
 
-        $this->task = new CallableTask($task);
+		if ( ! is_callable( $task ) ) {
+			throw new InvalidArgumentException( 'An eval task must implement TaskInterface or be callable.' );
+		}
 
-        return $this;
-    }
+		$this->task = new CallableTask( $task );
 
-    /**
-     * Registers a callable task that promises to honor the run's exact model target.
-     *
-     * The callable receives the same ($input, EvaluationContext $context) arguments
-     * as a regular callable task and should pass $context->getModelTarget() to the
-     * AI client code it exercises.
-     */
-    public function modelTask(callable $task, string $type = 'callable:model'): self
-    {
-        $this->task = new ModelCallableTask($task, $type);
+		return $this;
+	}
 
-        return $this;
-    }
+	/**
+	 * Registers a callable task that promises to honor the run's exact model target.
+	 *
+	 * The callable receives the same ($input, EvaluationContext $context) arguments
+	 * as a regular callable task and should pass $context->get_model_target() to the
+	 * AI client code it exercises.
+	 */
+	public function model_task( callable $task, string $type = 'callable:model' ): self {
+		$this->task = new ModelCallableTask( $task, $type );
 
-    public function evaluateWith(EvaluatorInterface $evaluator): self
-    {
-        $this->evaluators[] = $evaluator;
+		return $this;
+	}
 
-        return $this;
-    }
+	public function evaluate_with( EvaluatorInterface $evaluator ): self {
+		$this->evaluators[] = $evaluator;
 
-    public function tag(string ...$tags): self
-    {
-        foreach ($tags as $tag) {
-            $tag = strtolower(trim($tag));
-            if (1 !== preg_match('/^[a-z0-9][a-z0-9._-]*$/', $tag)) {
-                throw new InvalidArgumentException(sprintf('Invalid eval tag "%s".', $tag));
-            }
-            if (!in_array($tag, $this->tags, true)) {
-                $this->tags[] = $tag;
-            }
-        }
+		return $this;
+	}
 
-        return $this;
-    }
+	public function tag( string ...$tags ): self {
+		foreach ( $tags as $tag ) {
+			$tag = strtolower( trim( $tag ) );
+			if ( 1 !== preg_match( '/^[a-z0-9][a-z0-9._-]*$/', $tag ) ) {
+				throw new InvalidArgumentException( sprintf( 'Invalid eval tag "%s".', esc_html( $tag ) ) );
+			}
+			if ( in_array( $tag, $this->tags, true ) ) {
+				continue;
+			}
 
-    /** @param array<string, mixed> $metadata */
-    public function metadata(array $metadata): self
-    {
-        $this->metadata = $metadata;
+			$this->tags[] = $tag;
+		}
 
-        return $this;
-    }
+		return $this;
+	}
 
-    public function getId(): string
-    {
-        return $this->id;
-    }
+	/** @param array<string, mixed> $metadata */
+	public function metadata( array $metadata ): self {
+		$this->metadata = $metadata;
 
-    public function getLabel(): string
-    {
-        return $this->label;
-    }
+		return $this;
+	}
 
-    /** @return mixed */
-    public function getInput()
-    {
-        return $this->input;
-    }
+	public function get_id(): string {
+		return $this->id;
+	}
 
-    /** @return mixed */
-    public function getExpected()
-    {
-        return $this->expected;
-    }
+	public function get_label(): string {
+		return $this->label;
+	}
 
-    public function getTask(): TaskInterface
-    {
-        if (null === $this->task) {
-            throw new InvalidArgumentException(sprintf('Eval case "%s" has no task.', $this->id));
-        }
+	/** @return mixed */
+	public function get_input() {
+		return $this->input;
+	}
 
-        return $this->task;
-    }
+	/** @return mixed */
+	public function get_expected() {
+		return $this->expected;
+	}
 
-    /** @return list<EvaluatorInterface> */
-    public function getEvaluators(): array
-    {
-        return $this->evaluators;
-    }
+	public function get_task(): TaskInterface {
+		if ( null === $this->task ) {
+			throw new InvalidArgumentException( sprintf( 'Eval case "%s" has no task.', esc_html( $this->id ) ) );
+		}
 
-    /** @return list<string> */
-    public function getTags(): array
-    {
-        return $this->tags;
-    }
+		return $this->task;
+	}
 
-    /** @return array<string, mixed> */
-    public function getMetadata(): array
-    {
-        return $this->metadata;
-    }
+	/** @return list<\Automattic\AiEvals\Evaluator\EvaluatorInterface> */
+	public function get_evaluators(): array {
+		return $this->evaluators;
+	}
+
+	/** @return list<string> */
+	public function get_tags(): array {
+		return $this->tags;
+	}
+
+	/** @return array<string, mixed> */
+	public function get_metadata(): array {
+		return $this->metadata;
+	}
 }

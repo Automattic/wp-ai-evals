@@ -72,6 +72,8 @@ Useful focused checks:
 
 ```bash
 composer check
+composer phpcs
+composer phpcbf
 pnpm lint:js
 pnpm lint:css
 pnpm typecheck

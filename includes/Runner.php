@@ -4,211 +4,220 @@ declare(strict_types=1);
 
 namespace Automattic\AiEvals;
 
-use Throwable;
 use Automattic\AiEvals\Task\ModelTargetAwareTaskInterface;
+use Throwable;
 
-final class Runner
-{
-    public function run(
-        Registry $registry,
-        ?Selection $selection = null,
-        ?RunConfiguration $configuration = null
-    ): RunReport
-    {
-        $selection = $selection ?? Selection::all();
-        $configuration = $configuration ?? new RunConfiguration();
-        $startedAt = gmdate('c');
-        $started = microtime(true);
-        $results = [];
+final class Runner {
 
-        $this->action('wp_ai_evals_before_run', $registry, $selection, $configuration);
+	public function run(
+		Registry $registry,
+		?Selection $selection = null,
+		?RunConfiguration $configuration = null
+	): RunReport {
+		$selection     = $selection ?? Selection::all();
+		$configuration = $configuration ?? new RunConfiguration();
+		$started_at    = gmdate( 'c' );
+		$started       = microtime( true );
+		$results       = array();
+		$repetitions   = $selection->get_repetitions();
 
-        foreach ($registry->all() as $suite) {
-            foreach ($suite->getCases() as $case) {
-                if (!$selection->matches($suite, $case)) {
-                    continue;
-                }
+		if ( function_exists( 'do_action' ) ) {
+			do_action( 'wp_ai_evals_before_run', $registry, $selection, $configuration );
+		}
 
-                foreach ($this->targetsForCase($case, $configuration) as $modelTarget) {
-                    for ($iteration = 1; $iteration <= $selection->getRepetitions(); ++$iteration) {
-                        $results[] = $this->runCase(
-                            $suite,
-                            $case,
-                            $iteration,
-                            $modelTarget,
-                            $configuration
-                        );
-                    }
-                }
-            }
-        }
+		foreach ( $registry->all() as $suite ) {
+			foreach ( $suite->get_cases() as $evaluation_case ) {
+				if ( ! $selection->matches( $suite, $evaluation_case ) ) {
+					continue;
+				}
 
-        $report = new RunReport(
-            $this->makeRunId(),
-            $startedAt,
-            (microtime(true) - $started) * 1000,
-            $results,
-            $configuration
-        );
+				foreach ( $this->targets_for_case( $evaluation_case, $configuration ) as $model_target ) {
+					for ( $iteration = 1; $iteration <= $repetitions; ++$iteration ) {
+						$results[] = $this->run_case(
+							$suite,
+							$evaluation_case,
+							$iteration,
+							$model_target,
+							$configuration
+						);
+					}
+				}
+			}
+		}
 
-        $this->action('wp_ai_evals_after_run', $report);
+		$report = new RunReport(
+			$this->make_run_id(),
+			$started_at,
+			( microtime( true ) - $started ) * 1000,
+			$results,
+			$configuration
+		);
 
-        return $report;
-    }
+		if ( function_exists( 'do_action' ) ) {
+			do_action( 'wp_ai_evals_after_run', $report );
+		}
 
-    public function runCase(
-        Suite $suite,
-        EvaluationCase $case,
-        int $iteration = 1,
-        ?ModelTarget $modelTarget = null,
-        ?RunConfiguration $configuration = null
-    ): CaseResult {
-        $configuration = $configuration ?? new RunConfiguration(
-            null !== $modelTarget ? [$modelTarget] : []
-        );
-        $context = new EvaluationContext($suite, $case, $iteration, $modelTarget, $configuration);
-        $started = microtime(true);
-        $taskType = 'unconfigured';
+		return $report;
+	}
 
-        $this->action('wp_ai_evals_before_case', $context);
+	public function run_case(
+		Suite $suite,
+		EvaluationCase $evaluation_case,
+		int $iteration = 1,
+		?ModelTarget $model_target = null,
+		?RunConfiguration $configuration = null
+	): CaseResult {
+		$configuration = $configuration ?? new RunConfiguration(
+			null !== $model_target ? array( $model_target ) : array()
+		);
+		$context       = new EvaluationContext( $suite, $evaluation_case, $iteration, $model_target, $configuration );
+		$started       = microtime( true );
+		$task_type     = 'unconfigured';
 
-        try {
-            $task = $case->getTask();
-            $taskType = $task->getType();
-            $result = $task->run($case->getInput(), $context);
-            if (null !== $modelTarget && $task instanceof ModelTargetAwareTaskInterface) {
-                if (!$modelTarget->matchesMetadata($result->getMetadata())) {
-                    $actualProvider = isset($result->getMetadata()['provider'])
-                        ? (string) $result->getMetadata()['provider']
-                        : 'unknown';
-                    $actualModel = isset($result->getMetadata()['model'])
-                        ? (string) $result->getMetadata()['model']
-                        : 'unknown';
-                    throw new Exception\RuntimeException(sprintf(
-                        'Model-aware task did not use exact target "%s"; resolved "%s:%s".',
-                        $modelTarget->getId(),
-                        $actualProvider,
-                        $actualModel
-                    ));
-                }
+		if ( function_exists( 'do_action' ) ) {
+			do_action( 'wp_ai_evals_before_case', $context );
+		}
 
-                $result = $result->withMetadata([
-                    'requested_model_target' => $modelTarget->getId(),
-                    'model_target_match' => true,
-                ]);
-            }
-            $taskDuration = (microtime(true) - $started) * 1000;
-            $result = $result->withMetric('duration_ms', $taskDuration);
-            $evaluatorResults = [];
+		try {
+			$task      = $evaluation_case->get_task();
+			$task_type = $task->get_type();
+			$result    = $task->run( $evaluation_case->get_input(), $context );
+			if ( null !== $model_target && $task instanceof ModelTargetAwareTaskInterface ) {
+				if ( ! $model_target->matchesMetadata( $result->get_metadata() ) ) {
+					$actual_provider = isset( $result->get_metadata()['provider'] )
+						? (string) $result->get_metadata()['provider']
+						: 'unknown';
+					$actual_model    = isset( $result->get_metadata()['model'] )
+						? (string) $result->get_metadata()['model']
+						: 'unknown';
+					throw new Exception\RuntimeException(
+						sprintf(
+							'Model-aware task did not use exact target "%s"; resolved "%s:%s".',
+							$model_target->get_id(),
+							$actual_provider,
+							$actual_model
+						)
+					);
+				}
 
-            if ([] === $case->getEvaluators()) {
-                throw new Exception\RuntimeException(
-                    sprintf('Eval case "%s" has no evaluators.', $context->getQualifiedCaseId())
-                );
-            }
+				$result = $result->withMetadata(
+					array(
+						'requested_model_target' => $model_target->get_id(),
+						'model_target_match'     => true,
+					)
+				);
+			}
+			$task_duration     = ( microtime( true ) - $started ) * 1000;
+			$result            = $result->withMetric( 'duration_ms', $task_duration );
+			$evaluator_results = array();
 
-            foreach ($case->getEvaluators() as $evaluator) {
-                $evaluatorStarted = microtime(true);
-                try {
-                    $evaluation = $evaluator->evaluate($result, $case->getExpected(), $context);
-                } catch (Throwable $error) {
-                    $evaluation = EvaluatorResult::fail(
-                        $evaluator->getName(),
-                        $evaluator->getType(),
-                        $error->getMessage()
-                    );
-                }
-                $evaluatorResults[] = $evaluation->withMetric(
-                    'duration_ms',
-                    (microtime(true) - $evaluatorStarted) * 1000
-                );
-            }
+			if ( array() === $evaluation_case->get_evaluators() ) {
+				throw new Exception\RuntimeException(
+					sprintf( 'Eval case "%s" has no evaluators.', $context->get_qualified_case_id() )
+				);
+			}
 
-            $passed = !in_array(false, array_map(
-                static fn(EvaluatorResult $evaluation): bool => $evaluation->hasPassed(),
-                $evaluatorResults
-            ), true);
-            $score = array_sum(array_map(
-                static fn(EvaluatorResult $evaluation): float => $evaluation->getScore(),
-                $evaluatorResults
-            )) / count($evaluatorResults);
+			foreach ( $evaluation_case->get_evaluators() as $evaluator ) {
+				$evaluator_started = microtime( true );
+				try {
+					$evaluation = $evaluator->evaluate( $result, $evaluation_case->get_expected(), $context );
+				} catch ( Throwable $error ) {
+					$evaluation = EvaluatorResult::fail(
+						$evaluator->get_name(),
+						$evaluator->get_type(),
+						$error->getMessage()
+					);
+				}
+				$evaluator_results[] = $evaluation->withMetric(
+					'duration_ms',
+					( microtime( true ) - $evaluator_started ) * 1000
+				);
+			}
 
-            $caseResult = new CaseResult(
-                $suite->getId(),
-                $case->getId(),
-                $case->getLabel(),
-                $taskType,
-                $iteration,
-                $passed ? 'passed' : 'failed',
-                $score,
-                (microtime(true) - $started) * 1000,
-                $result,
-                $evaluatorResults,
-                '',
-                $case->getInput(),
-                $case->getExpected(),
-                $case->getTags(),
-                $case->getMetadata(),
-                $modelTarget
-            );
-        } catch (Throwable $error) {
-            $caseResult = new CaseResult(
-                $suite->getId(),
-                $case->getId(),
-                $case->getLabel(),
-                $taskType,
-                $iteration,
-                'error',
-                0.0,
-                (microtime(true) - $started) * 1000,
-                null,
-                [],
-                $error->getMessage(),
-                $case->getInput(),
-                $case->getExpected(),
-                $case->getTags(),
-                $case->getMetadata(),
-                $modelTarget
-            );
-        }
+			$passed = ! in_array(
+				false,
+				array_map(
+					static fn( EvaluatorResult $evaluation ): bool => $evaluation->hasPassed(),
+					$evaluator_results
+				),
+				true
+			);
+			$score  = array_sum(
+				array_map(
+					static fn( EvaluatorResult $evaluation ): float => $evaluation->getScore(),
+					$evaluator_results
+				)
+			) / count( $evaluator_results );
 
-        $this->action('wp_ai_evals_after_case', $caseResult, $context);
+			$case_result = new CaseResult(
+				$suite->get_id(),
+				$evaluation_case->get_id(),
+				$evaluation_case->get_label(),
+				$task_type,
+				$iteration,
+				$passed ? 'passed' : 'failed',
+				$score,
+				( microtime( true ) - $started ) * 1000,
+				$result,
+				$evaluator_results,
+				'',
+				$evaluation_case->get_input(),
+				$evaluation_case->get_expected(),
+				$evaluation_case->get_tags(),
+				$evaluation_case->get_metadata(),
+				$model_target
+			);
+		} catch ( Throwable $error ) {
+			$case_result = new CaseResult(
+				$suite->get_id(),
+				$evaluation_case->get_id(),
+				$evaluation_case->get_label(),
+				$task_type,
+				$iteration,
+				'error',
+				0.0,
+				( microtime( true ) - $started ) * 1000,
+				null,
+				array(),
+				$error->getMessage(),
+				$evaluation_case->get_input(),
+				$evaluation_case->get_expected(),
+				$evaluation_case->get_tags(),
+				$evaluation_case->get_metadata(),
+				$model_target
+			);
+		}
 
-        return $caseResult;
-    }
+		if ( function_exists( 'do_action' ) ) {
+			do_action( 'wp_ai_evals_after_case', $case_result, $context );
+		}
 
-    /** @param mixed ...$arguments */
-    private function action(string $name, ...$arguments): void
-    {
-        if (function_exists('do_action')) {
-            do_action($name, ...$arguments);
-        }
-    }
+		return $case_result;
+	}
 
-    public function makeRunId(): string
-    {
-        try {
-            return gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
-        } catch (Throwable $error) {
-            return uniqid(gmdate('Ymd-His') . '-', true);
-        }
-    }
+	public function make_run_id(): string {
+		try {
+			return gmdate( 'Ymd-His' ) . '-' . bin2hex( random_bytes( 4 ) );
+		} catch ( Throwable $error ) {
+			return uniqid( gmdate( 'Ymd-His' ) . '-', true );
+		}
+	}
 
-    /**
-     * Model-independent tasks execute once instead of being duplicated in every model variant.
-     *
-     * @return list<ModelTarget|null>
-     */
-    public function targetsForCase(EvaluationCase $case, RunConfiguration $configuration): array
-    {
-        try {
-            if ($case->getTask() instanceof ModelTargetAwareTaskInterface) {
-                return $configuration->getExecutionTargets();
-            }
-        } catch (Throwable $error) {
-            // Invalid case configuration is captured as a normal case error during execution.
-        }
+	/**
+	 * Model-independent tasks execute once instead of being duplicated in every model variant.
+	 *
+	 * @return list<\Automattic\AiEvals\ModelTarget|null>
+	 */
+	public function targets_for_case( EvaluationCase $evaluation_case, RunConfiguration $configuration ): array {
+		try {
+			if ( $evaluation_case->get_task() instanceof ModelTargetAwareTaskInterface ) {
+				return $configuration->getExecutionTargets();
+			}
+		} catch ( Throwable $error ) {
+			// Invalid case configuration is captured as a normal case error during execution.
+			unset( $error );
+		}
 
-        return [null];
-    }
+		return array( null );
+	}
 }
