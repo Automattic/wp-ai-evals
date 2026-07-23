@@ -42,11 +42,19 @@ final class JunitFormatterTest extends TestCase
         $xml = (new JunitFormatter())->format($report);
 
         self::assertStringContainsString('errors="1"', $xml);
-        libxml_use_internal_errors(true);
-        libxml_clear_errors();
-        $parsed = simplexml_load_string($xml);
-        $errors = libxml_get_errors();
-        libxml_clear_errors();
+
+        // libxml_use_internal_errors() mutates process-global state; save and
+        // restore it so this test cannot influence others or mask their warnings.
+        $previousUseInternalErrors = libxml_use_internal_errors(true);
+        try {
+            libxml_clear_errors();
+            $parsed = simplexml_load_string($xml);
+            $errors = libxml_get_errors();
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousUseInternalErrors);
+        }
+
         self::assertNotFalse($parsed, 'JUnit XML with control characters must remain parseable.');
         self::assertSame([], $errors);
     }
