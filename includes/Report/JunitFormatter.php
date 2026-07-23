@@ -67,6 +67,12 @@ final class JunitFormatter
 
     private function escape(string $value): string
     {
+        // Strip control characters that are illegal in XML 1.0 even when escaped
+        // (everything below U+0020 except tab, line feed, and carriage return).
+        // Task output and exception messages can contain these bytes, and leaving
+        // them in produces a document that JUnit/CI parsers reject.
+        $value = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $value);
+
         return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
     }
 }
