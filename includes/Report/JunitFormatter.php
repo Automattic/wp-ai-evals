@@ -14,16 +14,16 @@ final class JunitFormatter
     {
         $lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
         $lines[] = sprintf(
-            '<testsuite name="WordPress AI Evals" tests="%d" failures="%d" errors="%d" time="%.6f">',
+            '<testsuite name="WordPress AI Evals" tests="%d" failures="%d" errors="%d" time="%s">',
             $report->getTotal(),
             $this->countStatus($report, 'failed'),
             $this->countStatus($report, 'error'),
-            $report->getDurationMilliseconds() / 1000
+            $this->seconds($report->getDurationMilliseconds())
         );
 
         foreach ($report->getResults() as $result) {
             $lines[] = sprintf(
-                '  <testcase classname="%s" name="%s" time="%.6f">',
+                '  <testcase classname="%s" name="%s" time="%s">',
                 $this->escape($result->getSuiteId()),
                 $this->escape(
                     $result->getCaseId()
@@ -31,7 +31,7 @@ final class JunitFormatter
                     . $result->getIteration()
                     . (null !== $result->getModelTarget() ? '@' . $result->getModelTarget()->getId() : '')
                 ),
-                $result->getDurationMilliseconds() / 1000
+                $this->seconds($result->getDurationMilliseconds())
             );
 
             if ('error' === $result->getStatus()) {
@@ -63,6 +63,17 @@ final class JunitFormatter
             $report->getResults(),
             static fn(CaseResult $result): bool => $status === $result->getStatus()
         ));
+    }
+
+    /**
+     * Formats a millisecond duration as locale-independent seconds.
+     *
+     * sprintf('%f') honors LC_NUMERIC, which can emit a comma decimal
+     * separator and produce invalid JUnit XML on some locales.
+     */
+    private function seconds(float $milliseconds): string
+    {
+        return number_format($milliseconds / 1000, 6, '.', '');
     }
 
     private function escape(string $value): string

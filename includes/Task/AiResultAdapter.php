@@ -18,8 +18,19 @@ final class AiResultAdapter
             $output = $result->toText();
         } elseif (in_array($modality, ['image', 'speech', 'video'], true) && method_exists($result, 'toFile')) {
             $output = $result->toFile();
-        } elseif (method_exists($result, 'toMessage')) {
+        } elseif ('text' !== $modality && method_exists($result, 'toMessage')) {
             $output = $result->toMessage();
+        }
+
+        // Text evaluators expect a string. If a text result exposed no toText(),
+        // coerce a stringable result rather than handing evaluators a message or
+        // result object they cannot score.
+        if ('text' === $modality && !is_string($output)) {
+            if (is_object($output) && method_exists($output, '__toString')) {
+                $output = (string) $output;
+            } elseif (is_scalar($output)) {
+                $output = (string) $output;
+            }
         }
 
         $metadata = [];
