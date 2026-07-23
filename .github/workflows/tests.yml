@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  php:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,3 +18,17 @@ jobs:
           coverage: none
       - run: composer install --no-interaction --prefer-dist
       - run: composer check
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:js
+      - run: npm run lint:css
+      - run: npm run typecheck
+      - run: npm run build

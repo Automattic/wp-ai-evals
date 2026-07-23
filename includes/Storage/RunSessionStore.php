@@ -79,7 +79,18 @@ final class RunSessionStore
         return null === $session ? null : $this->normalize($session, false);
     }
 
-    /** @return array{session: array<string, mixed>, report: RunReport|null} */
+    /**
+     * Advances a live run by one case variant.
+     *
+     * This performs an unlocked read-modify-write on the session transient. The
+     * Admin app awaits each `/next` request before issuing the following one, so
+     * calls are serialized in practice. Concurrent advances of the same run (for
+     * example, the same session driven from two browser tabs) can race and
+     * double-process a queue item; callers that cannot guarantee serialization
+     * should add their own locking.
+     *
+     * @return array{session: array<string, mixed>, report: RunReport|null}
+     */
     public function advance(string $runId, Registry $registry, Runner $runner): array
     {
         $session = $this->read($runId);

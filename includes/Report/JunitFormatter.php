@@ -14,16 +14,16 @@ final class JunitFormatter
     {
         $lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
         $lines[] = sprintf(
-            '<testsuite name="WordPress AI Evals" tests="%d" failures="%d" errors="%d" time="%.6f">',
+            '<testsuite name="WordPress AI Evals" tests="%d" failures="%d" errors="%d" time="%s">',
             $report->getTotal(),
             $this->countStatus($report, 'failed'),
             $this->countStatus($report, 'error'),
-            $report->getDurationMilliseconds() / 1000
+            $this->seconds($report->getDurationMilliseconds())
         );
 
         foreach ($report->getResults() as $result) {
             $lines[] = sprintf(
-                '  <testcase classname="%s" name="%s" time="%.6f">',
+                '  <testcase classname="%s" name="%s" time="%s">',
                 $this->escape($result->getSuiteId()),
                 $this->escape(
                     $result->getCaseId()
@@ -31,7 +31,7 @@ final class JunitFormatter
                     . $result->getIteration()
                     . (null !== $result->getModelTarget() ? '@' . $result->getModelTarget()->getId() : '')
                 ),
-                $result->getDurationMilliseconds() / 1000
+                $this->seconds($result->getDurationMilliseconds())
             );
 
             if ('error' === $result->getStatus()) {
@@ -65,8 +65,25 @@ final class JunitFormatter
         ));
     }
 
+    /**
+     * Formats a millisecond duration as locale-independent seconds.
+     *
+     * sprintf('%f') honors LC_NUMERIC, which can emit a comma decimal
+     * separator and produce invalid JUnit XML on some locales.
+     */
+    private function seconds(float $milliseconds): string
+    {
+        return number_format($milliseconds / 1000, 6, '.', '');
+    }
+
     private function escape(string $value): string
     {
+        // Strip control characters that are illegal in XML 1.0 even when escaped
+        // (everything below U+0020 except tab, line feed, and carriage return).
+        // Task output and exception messages can contain these bytes, and leaving
+        // them in produces a document that JUnit/CI parsers reject.
+        $value = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $value);
+
         return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
     }
 }
