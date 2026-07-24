@@ -37,7 +37,7 @@ compiled Admin app even though `trunk` does not. The commit is reachable through
 the tag only and is never pushed back to the development branch.
 
 Each GitHub Release also includes a minimal Composer-ready ZIP named
-`automattic-ai-evals-VERSION.zip` and its SHA-256 checksum. The ZIP contains the
+`automattic-wp-ai-evals-VERSION.zip` and its SHA-256 checksum. The ZIP contains the
 Composer manifest, bootstrap, PHP library, license, README, version marker, and
 compiled Admin assets; development dependencies, tests, source assets, and the
 Hello Dolly example are omitted.

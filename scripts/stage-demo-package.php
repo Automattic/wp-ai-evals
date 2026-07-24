@@ -10,8 +10,8 @@
 declare(strict_types=1);
 
 $root        = dirname( __DIR__ );
-$destination = $root . '/examples/hello-dolly-ai/.packages/automattic-ai-evals';
-$installed   = $root . '/examples/hello-dolly-ai/vendor/automattic/ai-evals';
+$destination = $root . '/examples/hello-dolly-ai/.packages/automattic-wp-ai-evals';
+$installed   = $root . '/examples/hello-dolly-ai/vendor/automattic/wp-ai-evals';
 $files       = array( 'bootstrap.php', 'composer.json', 'LICENSE.md' );
 
 /**
@@ -74,4 +74,4 @@ foreach ( $files as $file ) {
 copy_directory( $root . '/includes', $destination . '/includes' );
 copy_directory( $root . '/build', $destination . '/build' );
 
-fwrite( STDOUT, "Staged automattic/ai-evals for the Hello Dolly demo.\n" );
+fwrite( STDOUT, "Staged automattic/wp-ai-evals for the Hello Dolly demo.\n" );

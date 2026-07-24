@@ -122,10 +122,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
-          archive="$GITHUB_WORKSPACE/automattic-ai-evals-${VERSION}.zip"
+          archive="$GITHUB_WORKSPACE/automattic-wp-ai-evals-${VERSION}.zip"
           (
             cd "$OUTPUT_DIRECTORY"
-            zip -q -r "$archive" automattic-ai-evals
+            zip -q -r "$archive" automattic-wp-ai-evals
           )
           sha256sum "$archive" > "${archive}.sha256"
 
@@ -137,7 +137,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
-          archive="automattic-ai-evals-${VERSION}.zip"
+          archive="automattic-wp-ai-evals-${VERSION}.zip"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "$archive" "${archive}.sha256" \
               --clobber \

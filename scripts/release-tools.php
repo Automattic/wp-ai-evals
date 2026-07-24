@@ -60,7 +60,7 @@ final class ReleasePackager {
 		self::assert_build_is_complete( $root );
 		self::write_version_files( $root, $version );
 
-		$package_directory = $output_directory . '/automattic-ai-evals';
+		$package_directory = $output_directory . '/automattic-wp-ai-evals';
 		self::remove_directory( $package_directory );
 		if ( ! is_dir( $package_directory )
 			&& ! mkdir( $package_directory, 0777, true )

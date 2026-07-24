@@ -1,6 +1,6 @@
 # Hello Dolly AI
 
-Hello Dolly AI is a development-only sample plugin for WordPress 7.0. It provides a functioning dynamic chat block, a small connector-backed agent, three read-only WordPress Abilities, and two eval suites registered through `automattic/ai-evals` as a Composer development dependency.
+Hello Dolly AI is a development-only sample plugin for WordPress 7.0. It provides a functioning dynamic chat block, a small connector-backed agent, three read-only WordPress Abilities, and two eval suites registered through `automattic/wp-ai-evals` as a Composer development dependency.
 
 The sample is intentionally narrow: it helps signed-in users learn about Dolly Parton's life, career, signature songs, and philanthropy. Its source-backed knowledge functions keep the model grounded, and its system instruction prohibits reproducing song lyrics.
 
@@ -98,7 +98,7 @@ pnpm --filter hello-dolly-ai-example check
 pnpm --filter hello-dolly-ai-example test:php
 ```
 
-`composer install --no-dev` does not install `automattic/ai-evals` or autoload `evals/register.php`. A production plugin build should use `--no-dev` and omit this sample entirely.
+`composer install --no-dev` does not install `automattic/wp-ai-evals` or autoload `evals/register.php`. A production plugin build should use `--no-dev` and omit this sample entirely.
 
 ## Curated references
 

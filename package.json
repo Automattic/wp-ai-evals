@@ -2,7 +2,7 @@
     "name": "wp-ai-evals-workspace",
     "version": "0.1.0",
     "private": true,
-    "description": "Development workspace for automattic/ai-evals and the Hello Dolly AI example.",
+    "description": "Development workspace for automattic/wp-ai-evals and the Hello Dolly AI example.",
     "packageManager": "pnpm@10.18.3",
     "engines": {
         "node": ">=20",
@@ -14,7 +14,7 @@
         "lint:css": "wp-scripts lint-style \"src/admin/**/*.scss\"",
         "typecheck": "tsc --noEmit",
         "check": "pnpm lint:js && pnpm lint:css && pnpm typecheck && pnpm build && composer check",
-        "demo:setup": "pnpm build && php scripts/stage-demo-package.php && composer update automattic/ai-evals --working-dir=examples/hello-dolly-ai --no-interaction --no-audit && pnpm --filter hello-dolly-ai-example build",
+        "demo:setup": "pnpm build && php scripts/stage-demo-package.php && composer update automattic/wp-ai-evals --working-dir=examples/hello-dolly-ai --no-interaction --no-audit && pnpm --filter hello-dolly-ai-example build",
         "demo:check": "pnpm check && pnpm --filter hello-dolly-ai-example check && pnpm --filter hello-dolly-ai-example test:php",
         "env:start": "wp-env start",
         "env:stop": "wp-env stop",
