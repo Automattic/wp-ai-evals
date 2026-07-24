@@ -1,6 +1,6 @@
 {
     "name": "wp-ai-evals-workspace",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "private": true,
     "description": "Development workspace for automattic/wp-ai-evals and the Hello Dolly AI example.",
     "packageManager": "pnpm@10.18.3",
