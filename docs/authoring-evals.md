@@ -196,3 +196,7 @@ wp ai-evals run --tag=quality \
   --model=openai:gpt-5.4,anthropic:claude-sonnet-4-6 \
   --judge-model=google:gemini-3.1-pro-preview
 ```
+
+Ability tasks preserve the Ability's permission callback. When running them
+from WP-CLI, pass the global `--user=<login>` option if the callback expects an
+authenticated WordPress user.

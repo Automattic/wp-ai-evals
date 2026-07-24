@@ -17,6 +17,7 @@ import type {
 import {
 	formatCost,
 	formatCosts,
+	formatDateTime,
 	formatDuration,
 	formatNumber,
 	formatPercent,
@@ -798,7 +799,14 @@ export function Report( {
 							report.id
 						) }
 					</h2>
-					<small>{ report.started_at }</small>
+					<small>
+						<time
+							dateTime={ report.started_at }
+							title={ report.started_at }
+						>
+							{ formatDateTime( report.started_at ) }
+						</time>
+					</small>
 				</div>
 				<div className="wp-ai-evals-report-status">
 					<StatusPill status={ status } />

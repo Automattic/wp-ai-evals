@@ -21,7 +21,7 @@ final class AdminPage {
 		$hook_suffix = add_management_page(
 			__( 'AI Evals', 'wp-ai-evals' ),
 			__( 'AI Evals', 'wp-ai-evals' ),
-			'manage_options',
+			Access::get_capability(), // phpcs:ignore WordPress.WP.Capabilities.Undetermined -- Site administrators may filter the required capability.
 			self::SLUG,
 			array( $this, 'render' )
 		);
@@ -73,7 +73,7 @@ final class AdminPage {
 	}
 
 	public function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! Access::can_run() ) {
 			return;
 		}
 

@@ -2,13 +2,13 @@
 // @jsx createElement
 
 import { Button, Card, CardBody, CardHeader } from '@wordpress/components';
-import { dateI18n, getSettings as getDateSettings } from '@wordpress/date';
 import { createElement } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import type { RunHistoryItem } from '../types';
 import {
 	formatCosts,
+	formatDateTime,
 	formatDuration,
 	formatNumber,
 	formatPercent,
@@ -30,7 +30,6 @@ export function RunHistory( {
 	const showReportedCost = history.some(
 		( run ) => Object.keys( run.diagnostics?.costs ?? {} ).length > 0
 	);
-	const dateTimeFormat = getDateSettings().formats.datetime;
 
 	return (
 		<Card className="wp-ai-evals-card wp-ai-evals-history">
@@ -91,8 +90,7 @@ export function RunHistory( {
 													dateTime={ run.started_at }
 													title={ run.started_at }
 												>
-													{ dateI18n(
-														dateTimeFormat,
+													{ formatDateTime(
 														run.started_at
 													) }
 												</time>

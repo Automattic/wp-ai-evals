@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b3a2e4aefc8635b00d4c76554dc9af33",
+    "content-hash": "8ed52e61ba6312291b77062b0489925a",
     "packages": [],
     "packages-dev": [
         {
@@ -12,16 +12,20 @@
             "version": "dev-trunk",
             "dist": {
                 "type": "path",
-                "url": ".packages/automattic-ai-evals",
-                "reference": "c6cb488f77f253b8757134576de0ac2dd290eb4d"
+                "url": ".packages/automattic-ai-evals"
             },
             "require": {
                 "ext-json": "*",
                 "php": ">=7.4"
             },
             "require-dev": {
+                "automattic/vipwpcs": "^3.0",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.2.1",
                 "php-parallel-lint/php-parallel-lint": "^1.4",
-                "phpunit/phpunit": "^9.6"
+                "phpcompatibility/phpcompatibility-wp": "^3.0.0-alpha",
+                "phpunit/phpunit": "^9.6",
+                "slevomat/coding-standard": "^8.0",
+                "wp-coding-standards/wpcs": "^3.3"
             },
             "type": "library",
             "autoload": {
@@ -41,11 +45,18 @@
                 "lint": [
                     "parallel-lint --exclude vendor --exclude node_modules ."
                 ],
+                "phpcs": [
+                    "phpcs"
+                ],
+                "phpcbf": [
+                    "phpcbf"
+                ],
                 "test": [
                     "phpunit"
                 ],
                 "check": [
                     "@lint",
+                    "@phpcs",
                     "@test"
                 ]
             },

@@ -92,7 +92,7 @@ final class RestController {
 	}
 
 	public function can_run(): bool {
-		return current_user_can( 'manage_options' );
+		return Access::can_run();
 	}
 
 	public function models( \WP_REST_Request $request ): \WP_REST_Response {

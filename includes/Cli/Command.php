@@ -123,8 +123,8 @@ final class Command {
 	 * [--fail-under=<score>]
 	 * : Fail if aggregate score is below this 0..1 value. By default, only failed or errored cases produce a non-zero exit.
 	 *
-	 * [--no-store]
-	 * : Do not add the run to WP Admin history.
+	 * [--store]
+	 * : Add the run to WP Admin history. Defaults to true; use --no-store to disable.
 	 *
 	 * @param list<string>         $args
 	 * @param array<string, mixed> $assocArgs
@@ -151,7 +151,7 @@ final class Command {
 			$configuration
 		);
 
-		if ( ! isset( $assoc_args['no-store'] ) ) {
+		if ( ! array_key_exists( 'store', $assoc_args ) || false !== $assoc_args['store'] ) {
 			( new HistoryStore() )->save( $report );
 		}
 
