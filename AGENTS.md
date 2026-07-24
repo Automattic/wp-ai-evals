@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository contains `automattic/ai-evals`, a development-only Composer
+This repository contains `automattic/wp-ai-evals`, a development-only Composer
 library for evaluating WordPress plugins built with the WordPress AI Client,
 Connectors API, and Abilities API. It also contains the Hello Dolly AI example
 plugin used for integration and end-to-end testing.

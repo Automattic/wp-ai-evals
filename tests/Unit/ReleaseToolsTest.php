@@ -57,6 +57,7 @@ final class ReleaseToolsTest extends TestCase {
 		$package_directory = ReleasePackager::prepare( $root, $output, '0.2.0' );
 		$manifest          = json_decode( (string) file_get_contents( $root . '/package.json' ), true );
 
+		self::assertSame( $output . '/automattic-wp-ai-evals', $package_directory );
 		self::assertSame( '0.2.0', $manifest['version'] );
 		self::assertSame( "0.2.0\n", file_get_contents( $root . '/VERSION' ) );
 		self::assertFileExists( $package_directory . '/build/admin/index.js' );

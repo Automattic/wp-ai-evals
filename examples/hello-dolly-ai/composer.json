@@ -1,23 +1,23 @@
 {
     "name": "wordpress/hello-dolly-ai-example",
-    "description": "A development plugin demonstrating WordPress AI connectors, abilities, and automattic/ai-evals.",
+    "description": "A development plugin demonstrating WordPress AI connectors, abilities, and automattic/wp-ai-evals.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require": {
         "php": ">=7.4"
     },
     "require-dev": {
-        "automattic/ai-evals": "@dev"
+        "automattic/wp-ai-evals": "@dev"
     },
     "repositories": [
         {
             "type": "path",
-            "url": ".packages/automattic-ai-evals",
+            "url": ".packages/automattic-wp-ai-evals",
             "options": {
                 "reference": "none",
                 "symlink": false,
                 "versions": {
-                    "automattic/ai-evals": "dev-trunk"
+                    "automattic/wp-ai-evals": "dev-trunk"
                 }
             }
         }

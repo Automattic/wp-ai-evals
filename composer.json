@@ -1,5 +1,5 @@
 {
-    "name": "automattic/ai-evals",
+    "name": "automattic/wp-ai-evals",
     "description": "A development-only evaluation harness for WordPress AI plugins.",
     "type": "library",
     "license": "GPL-2.0-or-later",

@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8ed52e61ba6312291b77062b0489925a",
+    "content-hash": "645bee85a5123175d0eae57331970923",
     "packages": [],
     "packages-dev": [
         {
-            "name": "automattic/ai-evals",
+            "name": "automattic/wp-ai-evals",
             "version": "dev-trunk",
             "dist": {
                 "type": "path",
-                "url": ".packages/automattic-ai-evals"
+                "url": ".packages/automattic-wp-ai-evals"
             },
             "require": {
                 "ext-json": "*",
@@ -79,7 +79,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "automattic/ai-evals": 20
+        "automattic/wp-ai-evals": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
