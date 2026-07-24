@@ -34,10 +34,14 @@ Admin app, and creates a release-only commit containing:
 
 The release tag points to that commit, so GitHub's tag archives include the
 compiled Admin app even though `trunk` does not. The commit is reachable through
-the tag only and is never pushed back to the development branch.
+the tag only and is never pushed back to the development branch. Packagist uses
+GitHub's generated archive for that tag, and the root `.gitattributes` limits
+the archive to the same Composer-ready files assembled by the release packager.
 
 Each GitHub Release also includes a minimal Composer-ready ZIP named
 `automattic-wp-ai-evals-VERSION.zip` and its SHA-256 checksum. The ZIP contains the
 Composer manifest, bootstrap, PHP library, license, README, version marker, and
-compiled Admin assets; development dependencies, tests, source assets, and the
-Hello Dolly example are omitted.
+compiled Admin assets. It is provided as a directly downloadable, checksummed
+release asset; normal Packagist installs use the equivalent generated tag
+archive. Development dependencies, tests, source assets, and the Hello Dolly
+example are omitted from both.

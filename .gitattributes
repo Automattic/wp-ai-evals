@@ -1,0 +1,10 @@
+# GitHub generates Packagist dist archives from the release tag. Keep those
+# archives aligned with the minimal package assembled by ReleasePackager.
+/* export-ignore
+/bootstrap.php -export-ignore
+/composer.json -export-ignore
+/LICENSE.md -export-ignore
+/README.md -export-ignore
+/VERSION -export-ignore
+/build -export-ignore
+/includes -export-ignore
