@@ -19,13 +19,7 @@ Plugin authors register reusable evaluation suites and run them from **Tools →
 - Provider, model, token, tool, latency, score, failure, rubric, and optional provider-reported cost metadata.
 - Development-only loading with production safeguards.
 
-## Where it fits
-
-[WP Bench](https://make.wordpress.org/ai/handbook/projects/wp-bench/) measures
-how well language models understand WordPress development and generate
-WordPress code. WordPress AI Evals is complementary: it runs plugin-owned cases
-against the plugin's actual behavior inside WordPress, using the site's
-configured Connectors, AI Client, and Abilities.
+## Scope
 
 The harness follows the same core data → task → evaluator workflow as
 general-purpose eval systems, with deterministic and custom scorers, LLM
