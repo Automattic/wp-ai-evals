@@ -4,7 +4,8 @@ A development-only evaluation harness for plugins built with the WordPress AI Cl
 
 Plugin authors register reusable evaluation suites and run them from **Tools → AI Evals** or WP-CLI. The same cases can exercise deterministic contracts, custom scorers, performance budgets, LLM judges, repeated samples, and exact cross-provider model comparisons.
 
-> **Status:** Early development. The Composer package is `automattic/wp-ai-evals`, but it is not published yet.
+> **Status:** Early development. The Composer package is published on Packagist
+> as [`automattic/wp-ai-evals`](https://packagist.org/packages/automattic/wp-ai-evals).
 
 ![Configure an evaluation run in WordPress Admin](docs/images/configure-evaluation-run.jpg)
 
@@ -38,14 +39,7 @@ traces, richer datasets, and statistical reporting remain on the
 
 ## Installation
 
-Until the package is published, add a checkout as a Composer path repository from the plugin under test:
-
-```bash
-composer config repositories.automattic-wp-ai-evals path ../wp-ai-evals
-composer require --dev automattic/wp-ai-evals:@dev
-```
-
-Once published:
+Install the harness as a development dependency in the plugin under test:
 
 ```bash
 composer require --dev automattic/wp-ai-evals
